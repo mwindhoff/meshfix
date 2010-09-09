@@ -100,3 +100,5 @@ contrib/octree/octree_iterator.cxx
 contrib/octree/octree_cursor.cxx
 contrib/octree/octree.cxx
 JMeshExt-1.0alpha_src/src/mwExtensions.cpp
+JMeshExt-1.0alpha_src/include/triangleoctree.h
+JMeshExt-1.0alpha_src/src/triangleoctree.cpp

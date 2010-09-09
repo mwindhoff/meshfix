@@ -497,7 +497,8 @@ int main(int argc, char *argv[])
  // Keep only the biggest component
  int sc = tin.removeSmallestComponents( number_components_to_keep );
  if (sc) JMesh::warning("Removed %d small components\n",sc);
-
+ tin.initializeOctree();
+ return 0;
  // Fill holes by taking into account both sampling density and normal field continuity
  tin.fillSmallBoundaries(tin.E.numels(), true, true);
 

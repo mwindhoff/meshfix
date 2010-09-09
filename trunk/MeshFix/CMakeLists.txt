@@ -9,6 +9,7 @@ JMeshExt-1.0alpha_src/include/detectIntersections.h
 JMeshExt-1.0alpha_src/include/exttrimesh.h
 JMeshExt-1.0alpha_src/include/holeFilling.h
 JMeshExt-1.0alpha_src/include/sparseLSystem.h
+JMeshExt-1.0alpha_src/include/triangleoctree.h
 )
 set(meshfix_src
 JMeshExt-1.0alpha_src/src/jrs_predicates.c
@@ -16,6 +17,7 @@ JMeshExt-1.0alpha_src/src/detectIntersections.cpp
 JMeshExt-1.0alpha_src/src/holeFilling.cpp
 JMeshExt-1.0alpha_src/src/sparseLSystem.cpp
 JMeshExt-1.0alpha_src/src/mwExtensions.cpp
+JMeshExt-1.0alpha_src/src/triangleoctree.cpp
 )
 add_executable(meshfix ${meshfix_src} ${meshfix_h} meshfix.cpp)
 target_link_libraries(meshfix jmesh nl)
