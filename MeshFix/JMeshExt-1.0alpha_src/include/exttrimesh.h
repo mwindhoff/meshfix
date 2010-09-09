@@ -30,13 +30,15 @@
 
 #include "jmesh.h"
 #include "binTree.h"
-#include <octree>
+#include "triangleoctree.h"
+#include <set>
+using std::set;
 
 class ExtTriMesh : public Triangulation
 {
  public:
 
-    octree<Triangle*> *ot;
+ TriangleOctree *ot;
  // Constructors
  
  ExtTriMesh() : Triangulation() {};
@@ -45,7 +47,7 @@ class ExtTriMesh : public Triangulation
  ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) {};
 
  void initializeOctree();
-
+// void octreeAddTriangle(octree_node<set<Triangle*> > &n, Triangle &t, const double *center, const double width);
  Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  int     fillSmallBoundaries(int, bool =0, bool =0);   // (in "ALGORITHMS/holeFilling.C")
