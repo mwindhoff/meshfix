@@ -508,7 +508,7 @@ class Triangulation
  //
  /////////////////////////////////////////////////////////////////////////////
 
- int       removeSmallestComponents();		// (in "MESH_STRUCTURE/checkAndRepair.C")
+ int       removeSmallestComponents( unsigned number_to_keep = 1);		// (in "MESH_STRUCTURE/checkAndRepair.C")
  int       forceNormalConsistence();		// (in "MESH_STRUCTURE/checkAndRepair.C")
  int       forceNormalConsistence(Triangle *);	// (in "MESH_STRUCTURE/checkAndRepair.C")
  int       duplicateNonManifoldVertices();	// (in "MESH_STRUCTURE/checkAndRepair.C")

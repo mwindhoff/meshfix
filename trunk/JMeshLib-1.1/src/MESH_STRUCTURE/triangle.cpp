@@ -401,3 +401,14 @@ void Triangle::printTriangle(FILE *fp) const
  v2()->printPoint(fp);
  v3()->printPoint(fp);
 }
+
+void Triangle::unlinkEdges() {
+    if (e1->v1 != NULL) e1->v1->e0 = NULL;
+    if (e1->v2 != NULL) e1->v2->e0 = NULL;
+    if (e2->v1 != NULL) e2->v1->e0 = NULL;
+    if (e2->v2 != NULL) e2->v2->e0 = NULL;
+    if (e3->v1 != NULL) e3->v1->e0 = NULL;
+    if (e3->v2 != NULL) e3->v2->e0 = NULL;
+    e1->v1 = e1->v2 = e2->v1 = e2->v2 = e3->v1 = e3->v2 = NULL;
+    e1 = e2 = e3 = NULL;
+}
