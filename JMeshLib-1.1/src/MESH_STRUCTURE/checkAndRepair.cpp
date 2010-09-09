@@ -29,7 +29,8 @@
 #include "jqsort.h"
 #include <stdlib.h>
 #include <string.h>
-
+#include <map>
+#include <iostream>
 
 ////////////// Performs some checks and attempts to fix possible errors or degeneracies //////////////
 
@@ -406,79 +407,73 @@ i++;
 }
 
 
-//// If the mesh is made of more than one connected component ////
-//// keep only the biggest one and remove all the others.     ////
+//// If the mesh is made of more than one connected component             ////
+//// keep only the number_to_keep biggest ones and remove all the others. ////
 
-int Triangulation::removeSmallestComponents()
-{
- Node *n,*m;
- List todo;
- List components;
- List *component, *biggest = NULL;
- Triangle *t, *t1, *t2, *t3;
- int nt = 0, gnt = 0;
+int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
+    Node *n,*m;
+    List todo;
+    List components, biggestComponents;
+    List *component, *biggest = NULL;
+    std::map<const unsigned, const List*> sizeListMap;
+    Triangle *t, *t1, *t2, *t3;
+    int nt = 0, gnt = 0, lastgnt = 0;
 
- t = ((Triangle *)T.head()->data);
- n = T.head();
- do
- {
-  component = new List;
-  components.appendHead(component);
-  todo.appendHead(t);
-  while (todo.numels())
-  {
-   t = (Triangle *)todo.head()->data;
-   todo.removeCell(todo.head());
-   if (!IS_VISITED2(t))
-   {
-    t1 = t->t1();
-    t2 = t->t2();
-    t3 = t->t3();
+    t = ((Triangle *)T.head()->data);
+    n = T.head();
+    // fill components list
+    do {
+        component = new List;
+        components.appendHead(component);
+        todo.appendHead(t);
+        while (todo.numels())
+        {
+            t = (Triangle *)todo.head()->data;
+            todo.removeCell(todo.head());
+            if (!IS_VISITED2(t))
+            {
+                t1 = t->t1();
+                t2 = t->t2();
+                t3 = t->t3();
 
-    if (t1 != NULL && !IS_VISITED2(t1)) todo.appendHead(t1);
-    if (t2 != NULL && !IS_VISITED2(t2)) todo.appendHead(t2);
-    if (t3 != NULL && !IS_VISITED2(t3)) todo.appendHead(t3);
+                if (t1 != NULL && !IS_VISITED2(t1)) todo.appendHead(t1);
+                if (t2 != NULL && !IS_VISITED2(t2)) todo.appendHead(t2);
+                if (t3 != NULL && !IS_VISITED2(t3)) todo.appendHead(t3);
 
-    MARK_VISIT2(t);
-    component->appendTail(t);
-   }
-  }
-  todo.removeNodes();
-  for (; n != NULL; n=n->next()) {t = ((Triangle *)n->data); if (!IS_VISITED2(t)) break;}
- }
- while (n != NULL);
+                MARK_VISIT2(t);
+                component->appendTail(t);
+            }
+        }
+        todo.removeNodes();
+        // get next node with unvisited triangle
+        for (; n != NULL; n=n->next()) {t = ((Triangle *)n->data); if (!IS_VISITED2(t)) break;}
+    } while (n != NULL);
 
- FOREACHNODE(components, n)
-  if ((nt = ((List *)n->data)->numels()) > gnt) {gnt=nt; biggest = (List *)n->data;}
-
- FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
-
- nt = 0;
- FOREACHNODE(components, n)
-  if (((List *)n->data) != biggest)
-   FOREACHVTTRIANGLE(((List *)n->data), t, m)
-   {
-    if (t->e1->v1 != NULL) t->e1->v1->e0 = NULL;
-    if (t->e1->v2 != NULL) t->e1->v2->e0 = NULL;
-    if (t->e2->v1 != NULL) t->e2->v1->e0 = NULL;
-    if (t->e2->v2 != NULL) t->e2->v2->e0 = NULL;
-    if (t->e3->v1 != NULL) t->e3->v1->e0 = NULL;
-    if (t->e3->v2 != NULL) t->e3->v2->e0 = NULL;
-    t->e1->v1 = t->e1->v2 = t->e2->v1 = t->e2->v2 = t->e3->v1 = t->e3->v2 = NULL;
-    t->e1 = t->e2 = t->e3 = NULL;
-    nt++;
-   }
-
- FOREACHNODE(components, n) delete((List *)n->data);
-
- if (nt)
- {
-  d_boundaries = d_handles = d_shells = 1;
-  removeUnlinkedElements();
-  return 1;
- }
-
- return 0;
+    FOREACHNODE(components, n)
+        sizeListMap[((unsigned)((List *)n->data)->numels())]=(List *)n->data;
+    FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
+    nt = 0;
+    std::map<const unsigned, const List*>::const_reverse_iterator rit = sizeListMap.rbegin();
+    // skip number_to_keep last elements (since they have biggest number of elements)
+    for( std::map<const unsigned, const List*>::const_reverse_iterator rit2 = sizeListMap.rbegin(); rit2 != sizeListMap.rend(); rit2++)
+        std::cout << rit2->first << " ";
+    std::cout << std::endl;
+    for( unsigned i = 0; i < number_to_keep && rit != sizeListMap.rend(); i++) rit++;
+    for(; rit != sizeListMap.rend(); rit++) {
+        FOREACHVTTRIANGLE(rit->second, t, m) {
+            t->unlinkEdges();
+            nt++;
+        }
+    }
+    // delete components list
+    FOREACHNODE(components, n) delete((List *)n->data);
+    // if there are components that were unlinked
+    if (nt) {
+        d_boundaries = d_handles = d_shells = 1;
+        removeUnlinkedElements();
+        return 1;
+    }
+    return 0;
 }
 
 
