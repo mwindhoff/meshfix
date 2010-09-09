@@ -390,7 +390,7 @@ void ExtTriMesh::fairSelection(Triangle *t0)
    W_vicino=0; FOREACHVEEDGE(vicini2, e2, m) W_vicino += e2->length();
    W_j_vicino = e1->length();
    
-   if (IS_VISITED(vicino)) sps.sumCoefficient(-2*W_j_vicino/W_j, j, (int)vicino->info);
+   if (IS_VISITED(vicino)) sps.sumCoefficient(-2*W_j_vicino/W_j, j, (long int)vicino->info);
    else
    {
     sps.sumKnownTerm(2*W_j_vicino/W_j*vicino->x, j, 0);
@@ -403,7 +403,7 @@ void ExtTriMesh::fairSelection(Triangle *t0)
     vicino2 = e2->oppositeVertex(vicino);
     W_vicino_vicino2 = e2->length();
     peso = W_j_vicino * W_vicino_vicino2 / ( W_j * W_vicino);
-    if (IS_VISITED(vicino2)) sps.sumCoefficient(peso, j, (int)vicino2->info);
+    if (IS_VISITED(vicino2)) sps.sumCoefficient(peso, j, (long int)vicino2->info);
     else
     {
      sps.sumKnownTerm(-peso*vicino2->x, j, 0);
