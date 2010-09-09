@@ -213,12 +213,6 @@ void selectTrianglesInCubes(ExtTriMesh& tin)
  loc.freeNodes();
 }
 
-
-
-
-
-
-
 // returns true on success
 
 bool removeSelfIntersections(ExtTriMesh& tin, int max_iters)
@@ -230,7 +224,7 @@ bool removeSelfIntersections(ExtTriMesh& tin, int max_iters)
  {
   for (n=1; n<iter_count; n++) tin.growSelection();
   tin.removeSelectedTriangles();
-  tin.removeSmallestComponents();
+  tin.removeSmallestComponents(2);
   JMesh::quiet = true; tin.fillSmallBoundaries(tin.E.numels()); JMesh::quiet = false;
   asciiAlign(tin);
   selectTrianglesInCubes(tin);
@@ -325,7 +319,7 @@ bool joinClosestComponents(ExtTriMesh *tin)
   if (i<2)
   {
    FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
-//   JMesh::info("Mesh is a single component. Nothing done.");
+   JMesh::info("Mesh is a single component. Nothing done.");
    return false;
   }
 
@@ -373,18 +367,32 @@ bool joinClosestComponents(ExtTriMesh *tin)
   return (gv!=NULL);
 }
 
+void joinTwoBiggestComponents(ExtTriMesh &tin) {
 
+    tin.deselectTriangles();
+    tin.invertSelection();
+    int nd=removeDegenerateTriangles(tin, 3);
+    tin.deselectTriangles();
+    tin.invertSelection();
+    tin.selectIntersectingTriangles();
+    tin.removeSelectedTriangles();
+    tin.fillSmallBoundaries(tin.E.numels(), true, true);
+}
 
 //#define DISCLAIMER
 
 void usage()
 {
  printf("\nMeshFix V1.0 - by Marco Attene\n------\n");
- printf("Usage: MeshFix meshfile [-a epsilon_angle] [-w] [-n]\n");
- printf("  Processes 'meshfile' and saves the result to 'meshfile_fixed.off'\n");
+ printf("Usage: MeshFix meshfile [-a <epsilon_angle>] [-w] [-s] [-n <n>]\n");
+ printf("  Processes 'meshfile' and saves the result to 'meshfile_fixed.stl'\n");
  printf("  By default, epsilon_angle is 0.\n  If specified, it must be in the range (0 - 2) degrees.\n");
  printf("  With '-w', the result is saved in VRML1.0 format instead of OFF.\n");
- printf("  With '-n', only the biggest input component is kept.\n");
+ printf("  With '-s', the result is saved in STL format instead of OFF.\n");
+ printf("  With '-n <n>', only the <n> biggest input components are kept.\n");
+// printf("  With '-u', uniform remeshing of the whole mesh.\n");
+ printf("  With '--no-clean', don't clean.\n");
+ printf("  With '--no-join', don't join the closest components.\n");
  printf("  Accepted input formats are OFF, PLY and STL.\n  Other formats are supported only partially.\n");
  printf("  See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
@@ -409,10 +417,10 @@ int main(int argc, char *argv[])
  char subext[128]="_fixed";
  JMesh::init();
  JMesh::app_name = "MeshFix";
- JMesh::app_version = "1.0";
+ JMesh::app_version = "1.1-alpha";
  JMesh::app_year = "2010";
- JMesh::app_authors = "Marco Attene";
- JMesh::app_maillist = "attene@ge.imati.cnr.it";
+ JMesh::app_authors = "Marco Attene, Mirko Windhoff";
+ JMesh::app_maillist = "attene@ge.imati.cnr.it, mirko.windhoff@tuebingen.mpg.de";
 
  ExtTriMesh tin;
 
@@ -426,13 +434,17 @@ int main(int argc, char *argv[])
 
  if (argc < 2) usage();
 
- bool keep_all_components = true;
+ bool join_closed_components = true;
  bool save_vrml = false;
+ bool save_stl = false;
+ bool uniformRemesh = false;
+ bool clean = true;
+ unsigned number_components_to_keep = 1;
  float par;
  for (int i=2; i<argc; i++)
  {
   if (i<argc-1) par = (float)atof(argv[i+1]); else par = 0;
-  if      (!strcmp(argv[i], "-a"))
+  if (!strcmp(argv[i], "-a"))
   {
    if (par < 0) JMesh::error("Epsilon angle must be > 0.\n");
    if (par > 2) JMesh::error("Epsilon angle must be < 2 degrees.\n");
@@ -443,8 +455,15 @@ int main(int argc, char *argv[])
 	printf("Fixing asin tolerance to %e\n",JMesh::acos_tolerance);
    }
   }
-  else if (!strcmp(argv[i], "-n")) keep_all_components = false;
+  else if (!strcmp(argv[i], "-n")) {
+      if (par < 1) JMesh::error("# components to keep must be >= 1.\n");
+      number_components_to_keep = par;
+  }
   else if (!strcmp(argv[i], "-w")) save_vrml = true;
+  else if (!strcmp(argv[i], "-s")) save_stl = true;
+  else if (!strcmp(argv[i], "-u")) uniformRemesh = true;
+  else if (!strcmp(argv[i], "--no-clean")) clean = false;
+  else if (!strcmp(argv[i], "--no-join")) join_closed_components = false;
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
 
   if (par) i++;
@@ -454,7 +473,7 @@ int main(int argc, char *argv[])
  if (tin.load(argv[1]) != 0) JMesh::error("Can't open file.\n");
  input_filename = argv[1];
 
- if (keep_all_components)
+ if (join_closed_components)
  {
   printf("\nJoining input components ...\n");
   JMesh::begin_progress();
@@ -463,27 +482,37 @@ int main(int argc, char *argv[])
   tin.deselectTriangles();
  }
 
+ // Keep the two biggest components
+// joinTwoBiggestComponents(tin);
+
  // Keep only the biggest component
- int sc = tin.removeSmallestComponents();
+ int sc = tin.removeSmallestComponents( number_components_to_keep );
  if (sc) JMesh::warning("Removed %d small components\n",sc);
 
  // Fill holes by taking into account both sampling density and normal field continuity
  tin.fillSmallBoundaries(tin.E.numels(), true, true);
 
- // Run geometry correction
- if (tin.boundaries() || !meshclean(tin))
- {
-  fprintf(stderr,"MeshFix failed!\n");
-  fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
-  FILE *fp = fopen("meshfix_log.txt","a");
-  fprintf(fp,"MeshFix failed on %s\n",input_filename);
-  fclose(fp);
+ if (uniformRemesh) {
+//     tin.uniformRemesh(); // not yet available, since absent in sources
  }
 
- char *fname = createFilename(argv[1], subext, (save_vrml)?(".wrl"):(".off"));
+ // Run geometry correction
+ if (clean) {
+     if (tin.boundaries() || !meshclean(tin)) {
+      fprintf(stderr,"MeshFix failed!\n");
+      fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
+      FILE *fp = fopen("meshfix_log.txt","a");
+      fprintf(fp,"MeshFix failed on %s\n",input_filename);
+      fclose(fp);
+     }
+ }
+ char *fname = createFilename(argv[1], subext, (save_vrml? ".wrl" : (save_stl? ".stl":".off")));
  printf("Saving output mesh to '%s'\n",fname);
- if (save_vrml) tin.saveVRML1(fname); else tin.saveOFF(fname);
-
+ if (save_vrml)
+     tin.saveVRML1(fname);
+ else if (save_stl)
+     tin.saveSTL(fname);
+ else
+     tin.saveOFF(fname);
  return 0;
 }
-
