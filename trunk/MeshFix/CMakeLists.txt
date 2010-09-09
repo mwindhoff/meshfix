@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 project (MeshFix)
-include_directories(JMeshExt-1.0alpha_src/include ../JMeshLib-1.1/include JMeshExt-1.0alpha_src/OpenNL3.0.2/src/NL JMeshExt-1.0alpha_src/OpenNL3.0.2/src)
+include_directories(JMeshExt-1.0alpha_src/include ../JMeshLib-1.1/include JMeshExt-1.0alpha_src/OpenNL3.0.2/src/NL JMeshExt-1.0alpha_src/OpenNL3.0.2/src contrib/octree)
 link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/JMeshExt-1.0alpha_src/lib)
 link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/JMeshExt-1.0alpha_src/OpenNL3.0.2/binaries/lib)
 set(meshfix_h 
@@ -15,6 +15,7 @@ JMeshExt-1.0alpha_src/src/jrs_predicates.c
 JMeshExt-1.0alpha_src/src/detectIntersections.cpp
 JMeshExt-1.0alpha_src/src/holeFilling.cpp
 JMeshExt-1.0alpha_src/src/sparseLSystem.cpp
+JMeshExt-1.0alpha_src/src/mwExtensions.cpp
 )
 add_executable(meshfix ${meshfix_src} ${meshfix_h} meshfix.cpp)
 target_link_libraries(meshfix jmesh nl)

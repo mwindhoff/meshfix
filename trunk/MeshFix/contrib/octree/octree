@@ -1,0 +1,88 @@
+#ifndef __octree
+#define __octree
+
+#include <cfloat>
+#include <stdexcept>
+#include <vector>
+// #include <vtkstd/vector>
+// adapted for usage without the vtk classes
+namespace vtkstd = std;
+namespace std {
+    typedef exception range_exception;
+}
+
+//#ifdef __APPLE__
+/* What software-bundling DRMoron at Apple thought this was OK?!?!! */
+//#undef A_
+//#undef P_
+//#undef R_
+//#undef T_
+//#endif // __APPLE__
+
+#if defined(_MSC_VER)
+/* What bit-brained bug generating embrace-and-extinguisher thought of this?!??!! */
+#  pragma warning (disable: 4181) /* qualifier applied to reference type ignored */
+#endif
+
+// The following headers should not be included directly.
+#define __octree_interior
+
+#include <octree_node.h>
+#include <octree_path.h>
+#include <octree_cursor.h>
+#include <octree_iterator.h>
+#include <octree.h>
+
+#include <octree_node.cxx>
+#include <octree_path.cxx>
+#include <octree_cursor.cxx>
+#include <octree_iterator.cxx>
+#include <octree.cxx>
+
+#undef __octree_interior
+
+#endif // __octree_h
+#ifndef __octree
+#define __octree
+
+#include <cfloat>
+#include <stdexcept>
+#include <vector>
+// #include <vtkstd/vector>
+// adapted for usage without the vtk classes
+namespace vtkstd = std;
+namespace std {
+    typedef exception range_exception;
+}
+
+//#ifdef __APPLE__
+/* What software-bundling DRMoron at Apple thought this was OK?!?!! */
+//#undef A_
+//#undef P_
+//#undef R_
+//#undef T_
+//#endif // __APPLE__
+
+#if defined(_MSC_VER)
+/* What bit-brained bug generating embrace-and-extinguisher thought of this?!??!! */
+#  pragma warning (disable: 4181) /* qualifier applied to reference type ignored */
+#endif
+
+// The following headers should not be included directly.
+#define __octree_interior
+
+#include <octree_node.h>
+#include <octree_path.h>
+#include <octree_cursor.h>
+#include <octree_iterator.h>
+#include <octree.h>
+
+#include <octree_node.cxx>
+#include <octree_path.cxx>
+#include <octree_cursor.cxx>
+#include <octree_iterator.cxx>
+#include <octree.cxx>
+
+#undef __octree_interior
+
+#endif // __octree_h

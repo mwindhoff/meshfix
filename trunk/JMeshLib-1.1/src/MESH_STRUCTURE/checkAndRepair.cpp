@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <map>
-#include <iostream>
 
 ////////////// Performs some checks and attempts to fix possible errors or degeneracies //////////////
 
@@ -412,52 +411,19 @@ i++;
 
 int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
     Node *n,*m;
-    List todo;
-    List components, biggestComponents;
-    List *component, *biggest = NULL;
     std::map<const unsigned, const List*> sizeListMap;
-    Triangle *t, *t1, *t2, *t3;
-    int nt = 0, gnt = 0, lastgnt = 0;
-
-    t = ((Triangle *)T.head()->data);
-    n = T.head();
+    Triangle *t;
+    int nt = 0;
     // fill components list
-    do {
-        component = new List;
-        components.appendHead(component);
-        todo.appendHead(t);
-        while (todo.numels())
-        {
-            t = (Triangle *)todo.head()->data;
-            todo.removeCell(todo.head());
-            if (!IS_VISITED2(t))
-            {
-                t1 = t->t1();
-                t2 = t->t2();
-                t3 = t->t3();
-
-                if (t1 != NULL && !IS_VISITED2(t1)) todo.appendHead(t1);
-                if (t2 != NULL && !IS_VISITED2(t2)) todo.appendHead(t2);
-                if (t3 != NULL && !IS_VISITED2(t3)) todo.appendHead(t3);
-
-                MARK_VISIT2(t);
-                component->appendTail(t);
-            }
-        }
-        todo.removeNodes();
-        // get next node with unvisited triangle
-        for (; n != NULL; n=n->next()) {t = ((Triangle *)n->data); if (!IS_VISITED2(t)) break;}
-    } while (n != NULL);
-
-    FOREACHNODE(components, n)
+    List* components = getComponents();
+    FOREACHNODE(*components, n)
         sizeListMap[((unsigned)((List *)n->data)->numels())]=(List *)n->data;
     FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
     nt = 0;
     std::map<const unsigned, const List*>::const_reverse_iterator rit = sizeListMap.rbegin();
     // skip number_to_keep last elements (since they have biggest number of elements)
-    for( std::map<const unsigned, const List*>::const_reverse_iterator rit2 = sizeListMap.rbegin(); rit2 != sizeListMap.rend(); rit2++)
-        std::cout << rit2->first << " ";
-    std::cout << std::endl;
+    for( std::map<const unsigned, const List*>::const_reverse_iterator rit2 = sizeListMap.rbegin();
+        rit2 != sizeListMap.rend(); rit2++)
     for( unsigned i = 0; i < number_to_keep && rit != sizeListMap.rend(); i++) rit++;
     for(; rit != sizeListMap.rend(); rit++) {
         FOREACHVTTRIANGLE(rit->second, t, m) {
@@ -466,7 +432,7 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
         }
     }
     // delete components list
-    FOREACHNODE(components, n) delete((List *)n->data);
+    FOREACHNODE(*components, n) delete((List *)n->data);
     // if there are components that were unlinked
     if (nt) {
         d_boundaries = d_handles = d_shells = 1;
@@ -475,7 +441,6 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
     }
     return 0;
 }
-
 
 //// Traverses the triangulation and inverts normals in order ////
 //// to make the adjacences consistent.			      ////

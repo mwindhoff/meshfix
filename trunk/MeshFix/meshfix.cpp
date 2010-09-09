@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <jrs_predicates.h>
+#include <iostream>
 
 const char *input_filename;
 double epsilon_angle = 0.0;
@@ -215,7 +216,7 @@ void selectTrianglesInCubes(ExtTriMesh& tin)
 
 // returns true on success
 
-bool removeSelfIntersections(ExtTriMesh& tin, int max_iters)
+bool removeSelfIntersections(ExtTriMesh& tin, int max_iters, int number_components_to_keep = 1)
 {
  int n, iter_count = 0;
 
@@ -224,7 +225,7 @@ bool removeSelfIntersections(ExtTriMesh& tin, int max_iters)
  {
   for (n=1; n<iter_count; n++) tin.growSelection();
   tin.removeSelectedTriangles();
-  tin.removeSmallestComponents(2);
+  tin.removeSmallestComponents(number_components_to_keep);
   JMesh::quiet = true; tin.fillSmallBoundaries(tin.E.numels()); JMesh::quiet = false;
   asciiAlign(tin);
   selectTrianglesInCubes(tin);
@@ -251,7 +252,7 @@ bool isDegeneracyFree(ExtTriMesh& tin)
 
 // returns true on success
 
-bool meshclean(ExtTriMesh& tin, int max_iters = 10, int inner_loops = 3)
+bool meshclean(ExtTriMesh& tin, int max_iters = 10, int inner_loops = 3, int number_components_to_keep = 1)
 {
  bool ni, nd;
 
@@ -263,7 +264,7 @@ bool meshclean(ExtTriMesh& tin, int max_iters = 10, int inner_loops = 3)
   printf("********* ITERATION %d *********\n",n);
   nd=removeDegenerateTriangles(tin, inner_loops);
   tin.deselectTriangles(); tin.invertSelection();
-  ni=removeSelfIntersections(tin, inner_loops);
+  ni=removeSelfIntersections(tin, inner_loops, number_components_to_keep);
   if (ni && nd && isDegeneracyFree(tin)) return true;
  }
 
@@ -384,17 +385,19 @@ void joinTwoBiggestComponents(ExtTriMesh &tin) {
 void usage()
 {
  printf("\nMeshFix V1.0 - by Marco Attene\n------\n");
- printf("Usage: MeshFix meshfile [-a <epsilon_angle>] [-w] [-s] [-n <n>]\n");
- printf("  Processes 'meshfile' and saves the result to 'meshfile_fixed.stl'\n");
- printf("  By default, epsilon_angle is 0.\n  If specified, it must be in the range (0 - 2) degrees.\n");
- printf("  With '-w', the result is saved in VRML1.0 format instead of OFF.\n");
- printf("  With '-s', the result is saved in STL format instead of OFF.\n");
- printf("  With '-n <n>', only the <n> biggest input components are kept.\n");
+ printf("Usage: MeshFix <meshfile1> [<meshfile2>] [-a <epsilon_angle>] [-w] [-s] [-n <n>]\n");
+ printf("  Processes <meshfile1> and saves the result to <meshfile>_fixed.off\n");
+ printf("  An optionally passed <meshfile2> is merged with the first one.");
+ printf("OPTIONS:\n");
+ printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
+ printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
+ printf(" -s                  Result is saved in STL     format instead of OFF.\n");
+ printf(" -n <n>              Only the <n> biggest input components are kept.\n");
 // printf("  With '-u', uniform remeshing of the whole mesh.\n");
- printf("  With '--no-clean', don't clean.\n");
- printf("  With '--no-join', don't join the closest components.\n");
- printf("  Accepted input formats are OFF, PLY and STL.\n  Other formats are supported only partially.\n");
- printf("  See http://jmeshlib.sourceforge.net for details on supported formats.\n");
+ printf(" --no-clean          Don't clean.\n");
+ printf(" --no-join           Don't join the closest components.\n");
+ printf("Accepted input formats are OFF, PLY and STL.\n  Other formats are supported only partially.\n");
+ printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
  printf("\n   M. Attene.\n   A lightweight approach to repairing digitized polygon meshes.\n   The Visual Computer, 2010. (c) Springer.\n");
  printf("\nHIT ENTER TO EXIT.\n");
@@ -440,12 +443,13 @@ int main(int argc, char *argv[])
  bool uniformRemesh = false;
  bool clean = true;
  unsigned number_components_to_keep = 1;
- float par;
+ float par = 0;
+ int n = 0;
  for (int i=2; i<argc; i++)
  {
-  if (i<argc-1) par = (float)atof(argv[i+1]); else par = 0;
   if (!strcmp(argv[i], "-a"))
   {
+   if (i<argc-1) par = (float)atof(argv[i+1]); else par = 0;
    if (par < 0) JMesh::error("Epsilon angle must be > 0.\n");
    if (par > 2) JMesh::error("Epsilon angle must be < 2 degrees.\n");
    epsilon_angle = par;
@@ -456,8 +460,11 @@ int main(int argc, char *argv[])
    }
   }
   else if (!strcmp(argv[i], "-n")) {
-      if (par < 1) JMesh::error("# components to keep must be >= 1.\n");
-      number_components_to_keep = par;
+      n = atoi(argv[i+1]);
+      if (n < 1) JMesh::error("# components to keep must be >= 1.\n");
+      number_components_to_keep = n;
+      JMesh::info("Keeping the biggest %d components.\n", n);
+      i++;
   }
   else if (!strcmp(argv[i], "-w")) save_vrml = true;
   else if (!strcmp(argv[i], "-s")) save_stl = true;
@@ -465,12 +472,14 @@ int main(int argc, char *argv[])
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "--no-join")) join_closed_components = false;
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
-
   if (par) i++;
  }
 
  // The loader performs the conversion to a set of oriented manifolds
  if (tin.load(argv[1]) != 0) JMesh::error("Can't open file.\n");
+ // Join the second input argument if existing
+ if (tin.append(argv[2]) == 0)
+     JMesh::info("Joining the two meshfiles %s %s.", argv[1], argv[2]);
  input_filename = argv[1];
 
  if (join_closed_components)
@@ -498,7 +507,7 @@ int main(int argc, char *argv[])
 
  // Run geometry correction
  if (clean) {
-     if (tin.boundaries() || !meshclean(tin)) {
+     if (tin.boundaries() || !meshclean(tin, 10, 3, number_components_to_keep)) {
       fprintf(stderr,"MeshFix failed!\n");
       fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
       FILE *fp = fopen("meshfix_log.txt","a");

@@ -33,3 +33,4 @@ src/PRIMITIVES/jqsort.cpp
 src/PRIMITIVES/list.cpp
 src/PRIMITIVES/matrix.cpp
 test/test.cpp
+../MeshFix/JMeshExt-1.0alpha_src/src/mwExtensions.cpp

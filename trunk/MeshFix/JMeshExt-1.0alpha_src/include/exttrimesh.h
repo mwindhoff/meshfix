@@ -29,17 +29,22 @@
 #define _EXTTRIMESH_H
 
 #include "jmesh.h"
+#include "binTree.h"
+#include <octree>
 
 class ExtTriMesh : public Triangulation
 {
  public:
 
+    octree<Triangle*> *ot;
  // Constructors
  
  ExtTriMesh() : Triangulation() {};
  ExtTriMesh(const char *s) : Triangulation(s) {};
  ExtTriMesh(const Triangulation *t) : Triangulation(t) {};
  ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) {};
+
+ void initializeOctree();
 
  Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
@@ -48,6 +53,7 @@ class ExtTriMesh : public Triangulation
  void    FillHole(Edge *, bool =0);		       // (in "ALGORITHMS/holeFilling.C")
  int refineSelectedHolePatches(Triangle * =NULL);      // (in "ALGORITHMS/holeFilling.C")
  void fairSelection(Triangle * =NULL);		       // (in "ALGORITHMS/holeFilling.C")
+ int     joinCloseOrOverlappingComponents( float min_allowed_distance = 1.0 );
 
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 

@@ -1160,6 +1160,47 @@ void Triangulation::removeShell(Triangle *t0)
 }
 
 
+//// Returns a List of all components in the Triangulation ////
+
+List* Triangulation::getComponents() {
+    List todo, components;
+    List *component;
+    Triangle *t, *t1, *t2, *t3;
+    t = ((Triangle *)T.head()->data);
+    Node *n = T.head();
+    // fill components list
+    do {
+        component = new List;
+        components.appendHead(component);
+        todo.appendHead(t);
+        while (todo.numels()) {
+            t = (Triangle *)todo.head()->data;
+            todo.removeCell(todo.head());
+            if (!IS_VISITED2(t)) {
+                t1 = t->t1();
+                t2 = t->t2();
+                t3 = t->t3();
+
+                if (t1 != NULL && !IS_VISITED2(t1)) todo.appendHead(t1);
+                if (t2 != NULL && !IS_VISITED2(t2)) todo.appendHead(t2);
+                if (t3 != NULL && !IS_VISITED2(t3)) todo.appendHead(t3);
+
+                MARK_VISIT2(t);
+                component->appendTail(t);
+            }
+        }
+        todo.removeNodes();
+        // get next node with unvisited triangle
+        for (; n != NULL; n=n->next()) {
+            t = ((Triangle *)n->data);
+            if (!IS_VISITED2(t))
+                break;
+        }
+    } while (n != NULL);
+    return &components;
+}
+
+
 //////////////////////////////////////////////////////////////////
 //                                                              //
 //    G L O B A L   O P E R A T I O N S                         //
