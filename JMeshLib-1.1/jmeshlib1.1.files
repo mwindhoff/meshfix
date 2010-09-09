@@ -34,3 +34,5 @@ src/PRIMITIVES/list.cpp
 src/PRIMITIVES/matrix.cpp
 test/test.cpp
 ../MeshFix/JMeshExt-1.0alpha_src/src/mwExtensions.cpp
+../MeshFix/JMeshExt-1.0alpha_src/src/triangleoctree.h
+../MeshFix/JMeshExt-1.0alpha_src/src/triangleoctree.cpp
