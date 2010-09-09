@@ -1,8 +1,4 @@
 gpl.txt
-JMeshExt-1.0alpha_src/CMakeCache.txt
-JMeshExt-1.0alpha_src/CMakeFiles/CompilerIdC/CMakeCCompilerId.c
-JMeshExt-1.0alpha_src/CMakeFiles/CompilerIdCXX/CMakeCXXCompilerId.cpp
-JMeshExt-1.0alpha_src/CMakeFiles/TargetDirectories.txt
 JMeshExt-1.0alpha_src/CMakeLists.txt
 JMeshExt-1.0alpha_src/include/detectIntersections.h
 JMeshExt-1.0alpha_src/include/exttrimesh.h
@@ -22,19 +18,13 @@ CMakeLists.txt
 contrib/octree/octree
 contrib/octree/octree_cursor.cxx
 contrib/octree/octree_cursor.h
-contrib/octree/octree_cursor.h
 contrib/octree/octree.cxx
 contrib/octree/octree_dox.h
-contrib/octree/octree_dox.h
-contrib/octree/octree.h
 contrib/octree/octree.h
 contrib/octree/octree_iterator.cxx
 contrib/octree/octree_iterator.h
-contrib/octree/octree_iterator.h
 contrib/octree/octree_node.cxx
 contrib/octree/octree_node.h
-contrib/octree/octree_node.h
 contrib/octree/octree_path.cxx
-contrib/octree/octree_path.h
 contrib/octree/octree_path.h
 

@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 2.6)
 project (MeshFix)
-include_directories(JMeshExt-1.0alpha_src/include ../JMeshLib-1.1/include JMeshExt-1.0alpha_src/OpenNL3.0.2/src/NL JMeshExt-1.0alpha_src/OpenNL3.0.2/src contrib/octree)
+include_directories(JMeshExt-1.0alpha_src/include ../JMeshLib-1.1/include contrib/OpenNL3.0.2/src/NL contrib/OpenNL3.0.2/src contrib/octree)
 link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/JMeshExt-1.0alpha_src/lib)
-link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/JMeshExt-1.0alpha_src/OpenNL3.0.2/binaries/lib)
+link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/contrib/OpenNL3.0.2/binaries/lib)
 set(meshfix_h 
 JMeshExt-1.0alpha_src/include/jrs_predicates.h
 JMeshExt-1.0alpha_src/include/detectIntersections.h
