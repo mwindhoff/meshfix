@@ -19,7 +19,7 @@ OPTM= -O2
 
 # On some versions of gcc the optimizer uses strict aliasing rules.
 # If this is not your case try to comment out the following line.
-STRICTALIAS= -fno-strict-aliasing
+STRICTALIAS= -fno-strict-aliasing -DIS64BITPLATFORM
 
 # On 64-bit machines you need to uncomment the following line
 # -DIS64BITPLATFORM

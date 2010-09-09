@@ -102,11 +102,11 @@ int swap_and_collapse(ExtTriMesh *tin)
     if (e->swap())
 	{
 	 t=e->t1;
-	 if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((int)t->info < MAX_ATTEMPTS))
-	  {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((int)t->info)+1);}
+	 if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((long int)t->info < MAX_ATTEMPTS))
+	  {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((long int)t->info)+1);}
 	 t=e->t2;
-	 if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((int)t->info < MAX_ATTEMPTS))
-	  {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((int)t->info)+1);}
+	 if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((long int)t->info < MAX_ATTEMPTS))
+	  {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((long int)t->info)+1);}
 	}
    }
   }
