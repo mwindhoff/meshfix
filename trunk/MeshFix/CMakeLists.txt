@@ -1,23 +1,23 @@
 cmake_minimum_required (VERSION 2.6)
 project (MeshFix)
-include_directories(JMeshExt-1.0alpha_src/include ../JMeshLib-1.1/include contrib/OpenNL3.0.2/src/NL contrib/OpenNL3.0.2/src contrib/octree)
-link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/JMeshExt-1.0alpha_src/lib)
+include_directories(include contrib/JMeshLib/include contrib/OpenNL3.0.2/src/NL contrib/OpenNL3.0.2/src contrib/octree)
+link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/contrib/JMeshLib/lib)
 link_directories(${LINK_DIRECTORIES} ${CMAKE_CURRENT_SOURCE_DIR}/contrib/OpenNL3.0.2/binaries/lib)
 set(meshfix_h 
-JMeshExt-1.0alpha_src/include/jrs_predicates.h
-JMeshExt-1.0alpha_src/include/detectIntersections.h
-JMeshExt-1.0alpha_src/include/exttrimesh.h
-JMeshExt-1.0alpha_src/include/holeFilling.h
-JMeshExt-1.0alpha_src/include/sparseLSystem.h
-JMeshExt-1.0alpha_src/include/triangleoctree.h
+include/jrs_predicates.h
+include/detectIntersections.h
+include/exttrimesh.h
+include/holeFilling.h
+include/sparseLSystem.h
+include/triangleoctree.h
 )
 set(meshfix_src
-JMeshExt-1.0alpha_src/src/jrs_predicates.c
-JMeshExt-1.0alpha_src/src/detectIntersections.cpp
-JMeshExt-1.0alpha_src/src/holeFilling.cpp
-JMeshExt-1.0alpha_src/src/sparseLSystem.cpp
-JMeshExt-1.0alpha_src/src/mwExtensions.cpp
-JMeshExt-1.0alpha_src/src/triangleoctree.cpp
+src/jrs_predicates.c
+src/detectIntersections.cpp
+src/holeFilling.cpp
+src/sparseLSystem.cpp
+src/mwExtensions.cpp
+src/triangleoctree.cpp
 )
 add_executable(meshfix ${meshfix_src} ${meshfix_h} meshfix.cpp)
 target_link_libraries(meshfix jmesh nl)
