@@ -29,4 +29,3 @@ contrib/JMeshLib/
 )
 add_executable(meshfix ${meshfix_src} ${meshfix_h} meshfix.cpp)
 target_link_libraries(meshfix jmesh nl)
-
