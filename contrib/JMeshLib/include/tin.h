@@ -427,7 +427,7 @@ class Triangulation
  void 	   removeShell(Triangle *t0);
 
  //! Get a list of all shells / components of the Triangulation
- List* getComponents();
+ List& getComponents();
 
  /////////////////////////////////////////////////////////////////////////////
  //

@@ -1,41 +1,68 @@
 #include "triangleoctree.h"
 
-TriangleOctree::TriangleOctree( const double* center, double size ) :
-        octree<set<Triangle*>, 3, std::allocator<set<Triangle*> > >::octree( center, size ) {}
+TriangleOctree::TriangleOctree( const double* octreeCenter, double octreeWidth ) :
+        octree<set<Triangle*>, 3, std::allocator<set<Triangle*> > >::octree( octreeCenter, octreeWidth ) {}
 
 void TriangleOctree::addTriangle(Triangle *t) {
     getNodeForTriangle(t).value().insert(t);
 }
 
-octree_node<set<Triangle*> >& TriangleOctree::getNodeForTriangle(Triangle *t, octree_node<set<Triangle*> >& n, const double *center, double width ) {
-    bool b[3][3];
-    b[0][0]= t->v1()->x > center[0];
-    b[0][1]= t->v1()->y > center[1];
-    b[0][2]= t->v1()->z > center[2];
-    b[1][0]= t->v2()->x > center[0];
-    b[1][1]= t->v2()->y > center[1];
-    b[1][2]= t->v2()->z > center[2];
-    b[2][0]= t->v3()->x > center[0];
-    b[2][1]= t->v3()->y > center[1];
-    b[2][2]= t->v3()->z > center[2];
-    if(    (b[0][0] == b[1][0] == b[2][0])
-        && (b[0][1] == b[1][1] == b[2][1])
-        && (b[0][2] == b[1][2] == b[2][2])) {
+TSetNode& TriangleOctree::getNodeForTriangle(const Triangle *t, TSetNode &n, const Point &octantCenter, const double octantWidth ) {
+    bool b[3];
+    b[0] = t->v1()->x > octantCenter.x;
+    b[1] = t->v1()->y > octantCenter.y;
+    b[2] = t->v1()->z > octantCenter.z;
+    if( b[0] == t->v2()->x > octantCenter.x && b[0] == t->v3()->x > octantCenter.x &&
+        b[1] == t->v2()->y > octantCenter.y && b[1] == t->v3()->y > octantCenter.y &&
+        b[2] == t->v2()->z > octantCenter.z && b[2] == t->v3()->z > octantCenter.z ) {
         unsigned idx = 0;
-        double c[3] = {center[0], center[1], center[2]};
-        for ( int i = 0; i < 3; i++) {
-            if (b[i][0]) {
-                idx+=(1<<i);
-                c[i] += width/2;
-            } else
-                c[i] -= width/2;
+        Point c = octantCenter-Point(octantWidth/4, octantWidth/4, octantWidth/4);
+        if( b[0] ) {
+            idx += 1;
+            c.x += octantWidth/2;
+        }
+        if( b[1] ) {
+            idx += 2;
+            c.y += octantWidth/2;
+        }
+        if( b[2] ) {
+            idx += 4;
+            c.z += octantWidth/2;
         }
         n.add_children(); // if they don't exist yet
-        return getNodeForTriangle(&*t, n[idx], (const double*) c, width/2);
+        return getNodeForTriangle(t, n[idx], c, octantWidth/2);
     }
     return n;
 }
 
-octree_node<set<Triangle*> >& TriangleOctree::getNodeForTriangle(Triangle *t) {
-    return getNodeForTriangle(&*t, *this->root(), this->center(), this->size());
+TSetNode& TriangleOctree::getNodeForTriangle(const Triangle *t) {
+    Point octreeCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
+    return getNodeForTriangle(t, *this->root(), octreeCenter, this->_M_size);
+}
+
+TSetNode& TriangleOctree::getNodeForSphere(const Point &sphereCenter, const double &sphereRadius,
+                                           TSetNode &n, const Point &octantCenter, const double octantWidth) {
+    if( n.num_children() > 0 && sphereCenter.distance(octantCenter) > sphereRadius ) {
+        unsigned idx = 0;
+        Point c = octantCenter-Point(octantWidth/4, octantWidth/4, octantWidth/4);
+        if( sphereCenter.x > octantCenter.x ) {
+            idx += 1;
+            c.x += octantWidth/2;
+        }
+        if( sphereCenter.y > octantCenter.y ) {
+            idx += 2;
+            c.y += octantWidth/2;
+        }
+        if( sphereCenter.z > octantCenter.z ) {
+            idx += 4;
+            c.z += octantWidth/2;
+        }
+        return getNodeForSphere(sphereCenter, sphereRadius, n[idx], c, octantWidth/2);
+    }
+    return n;
+}
+
+TSetNode& TriangleOctree::getNodeForSphere(const Point &sphereCenter, const double &sphereRadius) {
+    Point octreeCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
+    return getNodeForSphere(sphereCenter, sphereRadius, *this->root(), octreeCenter, this->_M_size);
 }
