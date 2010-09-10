@@ -415,8 +415,8 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
     Triangle *t;
     int nt = 0;
     // fill components list
-    List* components = getComponents();
-    FOREACHNODE(*components, n)
+    List components = getComponents();
+    FOREACHNODE(components, n)
         sizeListMap[((unsigned)((List *)n->data)->numels())]=(List *)n->data;
     FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
     nt = 0;
@@ -432,7 +432,7 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
         }
     }
     // delete components list
-    FOREACHNODE(*components, n) delete((List *)n->data);
+    FOREACHNODE(components, n) delete((List *)n->data);
     // if there are components that were unlinked
     if (nt) {
         d_boundaries = d_handles = d_shells = 1;

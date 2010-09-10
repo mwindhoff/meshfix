@@ -32,17 +32,17 @@
 
 double JMesh::acos_tolerance = 0.0001;
 FILE *JMesh::historyFile = NULL;
-void (* JMesh::display_message)(char*, int) = NULL;
+void (* JMesh::display_message)(const char*, int) = NULL;
 
-char *JMesh::app_name = NULL;
-char *JMesh::app_version = NULL;
-char *JMesh::app_year = NULL;
-char *JMesh::app_authors = NULL;
-char *JMesh::app_url = NULL;
-char *JMesh::app_maillist = NULL;
+const char *JMesh::app_name = NULL;
+const char *JMesh::app_version = NULL;
+const char *JMesh::app_year = NULL;
+const char *JMesh::app_authors = NULL;
+const char *JMesh::app_url = NULL;
+const char *JMesh::app_maillist = NULL;
 bool JMesh::quiet = false;
 
-void JMesh::init(double at, FILE *hf, void (*dm)(char *, int))
+void JMesh::init(double at, FILE *hf, void (*dm)(const char *, int))
 {
  acos_tolerance = at;
  historyFile = hf;
@@ -78,7 +78,7 @@ void JMesh::error(const char *msg, ...)
   display_message(fms, DISPMSG_ACTION_ERRORDIALOG);
  else
  {
-  fprintf(stderr,fms);
+  fprintf(stderr,"", fms);
   exit(-1);
  }
 }
@@ -98,7 +98,7 @@ void JMesh::warning(const char *msg, ...)
  if (display_message != NULL) 
   display_message(fms, DISPMSG_ACTION_PUTMESSAGE);
  else
-  fprintf(stderr,fms);
+  fprintf(stderr,"", fms);
 
  va_end(ap);
 }
@@ -118,7 +118,7 @@ void JMesh::info(const char *msg, ...)
  if (display_message != NULL) 
   display_message(fms, DISPMSG_ACTION_PUTMESSAGE);
  else
-  printf(fms);
+  printf("", fms);
 
  va_end(ap);
 }

@@ -1162,7 +1162,7 @@ void Triangulation::removeShell(Triangle *t0)
 
 //// Returns a List of all components in the Triangulation ////
 
-List* Triangulation::getComponents() {
+List& Triangulation::getComponents() {
     List todo, components;
     List *component;
     Triangle *t, *t1, *t2, *t3;
@@ -1197,7 +1197,7 @@ List* Triangulation::getComponents() {
                 break;
         }
     } while (n != NULL);
-    return &components;
+    return components;
 }
 
 

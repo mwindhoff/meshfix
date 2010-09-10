@@ -83,7 +83,7 @@ inline void PRINT_PLY_COMMENT(FILE *f)
 
 /// Returns TRUE if the two strings are equal in a case-insensitive sense /////
 
-inline bool sameString(char *a, char *b)
+inline bool sameString(const char *a, const char *b)
 {
  int i=0;
  while (a[i] != '\0' && b[i] != '\0')
