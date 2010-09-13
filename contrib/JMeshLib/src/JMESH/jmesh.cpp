@@ -130,8 +130,8 @@ void JMesh::begin_progress()
  if (quiet) return;
  if (display_message != NULL) 
   display_message("\n", DISPMSG_ACTION_PUTNEWLINE);
- else
-  printf("\n");
+// else
+//  printf("\n");
 }
 
 void JMesh::report_progress(const char *msg, ...)

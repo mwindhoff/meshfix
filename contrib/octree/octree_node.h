@@ -39,8 +39,8 @@ struct octree_node
   octree_node( octree_node_pointer parent, const value_type& data );
   ~octree_node();
 
-  bool is_leaf_node() { return this->_M_children == 0; }
-  int num_children() { return this->_M_children ? (1<<d_) : 0; }
+  bool is_leaf_node() const { return this->_M_children == 0; }
+  int num_children() const { return this->_M_children ? (1<<d_) : 0; }
   bool add_children();
   bool add_children( const T_& child_initializer );
   bool remove_children();

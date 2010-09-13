@@ -415,10 +415,10 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
     Triangle *t;
     int nt = 0;
     // fill components list
-    List components = getComponents();
+    List components;
+    fillComponentsList(components);
     FOREACHNODE(components, n)
         sizeListMap[((unsigned)((List *)n->data)->numels())]=(List *)n->data;
-    FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
     nt = 0;
     std::map<const unsigned, const List*>::const_reverse_iterator rit = sizeListMap.rbegin();
     // skip number_to_keep last elements (since they have biggest number of elements)
