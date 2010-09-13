@@ -37,17 +37,13 @@ using std::set;
 class ExtTriMesh : public Triangulation
 {
  public:
-
  TriangleOctree *ot;
  // Constructors
- 
- ExtTriMesh() : Triangulation() {};
- ExtTriMesh(const char *s) : Triangulation(s) {};
- ExtTriMesh(const Triangulation *t) : Triangulation(t) {};
- ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) {};
+ ExtTriMesh() : Triangulation() { ot = NULL; }
+ ExtTriMesh(const char *s) : Triangulation(s) {}
+ ExtTriMesh(const Triangulation *t) : Triangulation(t) {}
+ ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) {}
 
- void initializeOctree();
-// void octreeAddTriangle(octree_node<set<Triangle*> > &n, Triangle &t, const double *center, const double width);
  Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  int     fillSmallBoundaries(int, bool =0, bool =0);   // (in "ALGORITHMS/holeFilling.C")
@@ -55,7 +51,17 @@ class ExtTriMesh : public Triangulation
  void    FillHole(Edge *, bool =0);		       // (in "ALGORITHMS/holeFilling.C")
  int refineSelectedHolePatches(Triangle * =NULL);      // (in "ALGORITHMS/holeFilling.C")
  void fairSelection(Triangle * =NULL);		       // (in "ALGORITHMS/holeFilling.C")
- int     joinCloseOrOverlappingComponents( float min_allowed_distance = 1.0 );
+
+ // Mirko's functions
+ void initializeOctree();
+ int  joinCloseOrOverlappingComponents( double minAllowedDistance = 1.0 );
+ bool joinComponentsCloseBoundaries(List* nl, List *ml, double maxDistanceToJoin);
+ //! Returns true, if the Point p is inside the component (list of triangles).
+ //! True, if the angle between the normal of the triangle of the closest point
+ //! and the vector between the center of that triangle and p is < 90°.
+ //! Warning: The normals must be directed outwards of each component!
+ bool isPointInComponent(Point *p, List *component);
+ void getComponentsVertices(List &component, List &vertexList);
 
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 

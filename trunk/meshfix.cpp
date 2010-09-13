@@ -101,14 +101,14 @@ int swap_and_collapse(ExtTriMesh *tin)
    else if ((e=getLongestEdge(t))!=NULL)
    {
     if (e->swap())
-	{
-	 t=e->t1;
-	 if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((long int)t->info < MAX_ATTEMPTS))
-	  {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((long int)t->info)+1);}
-	 t=e->t2;
-	 if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((long int)t->info < MAX_ATTEMPTS))
-	  {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((long int)t->info)+1);}
-	}
+    {
+     t=e->t1;
+     if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((long int)t->info < MAX_ATTEMPTS))
+     {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((long int)t->info)+1);}
+     t=e->t2;
+     if (isDegenerateTriangle(t) && !IS_VISITED2(t) && ((long int)t->info < MAX_ATTEMPTS))
+     {triangles.appendTail(t); MARK_VISIT2(t); t->info = (void *)(((long int)t->info)+1);}
+    }
    }
   }
  }
@@ -291,111 +291,106 @@ double closestPair(List *bl1, List *bl2, Vertex **closest_on_bl1, Vertex **close
  return mindist;
 }
 
-bool joinClosestComponents(ExtTriMesh *tin)
-{
-  Vertex *v,*w, *gv, *gw;
-  Triangle *t, *s;
-  Node *n;
-  List triList, boundary_loops, *one_loop;
-  List **bloops_array;
-  int i, j, numloops;
+/**
+ * Joins the closest components, that have boundaries (holes).
+ */
+bool joinClosestComponents(ExtTriMesh *tin) {
+    Vertex *v,*w, *gv, *gw;
+    Triangle *t, *s;
+    Node *n;
+    List triList, boundary_loops, *one_loop;
+    List **bloops_array;
+    int i, j, numloops;
 
-  i=0;
-  FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
-  FOREACHVTTRIANGLE((&(tin->T)), t, n) if (t->info == NULL)
-  {
-   i++;
-   triList.appendHead(t);
-   t->info = (void *)i;
+    i=0;
+    // delete info of all triangles
+    FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
+    // initialize info of all triangles with their component number starting by 1.
+    FOREACHVTTRIANGLE((&(tin->T)), t, n) {
+        if (t->info == NULL) {
+            i++;
+            triList.appendHead(t);
+            t->info = (void *)i;
+            while(triList.numels()) {
+                t = (Triangle *)triList.popHead();
+                if ((s = t->t1()) != NULL && s->info == NULL) {triList.appendHead(s); s->info = (void *)i;}
+                if ((s = t->t2()) != NULL && s->info == NULL) {triList.appendHead(s); s->info = (void *)i;}
+                if ((s = t->t3()) != NULL && s->info == NULL) {triList.appendHead(s); s->info = (void *)i;}
+            }
+        }
+    }
+    // if less then 2 components
+    if (i<2) {
+        // unset info again
+        FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
+        JMesh::info("Mesh is a single component. Nothing done.");
+        return false;
+    }
+    // copy triangle component number to the vertices
+    FOREACHVTTRIANGLE((&(tin->T)), t, n) {
+        t->v1()->info = t->v2()->info = t->v3()->info = t->info;
+    }
+    // create list boundary loop lists (= lists of connected vertices on a boundary)
+    FOREACHVVVERTEX((&(tin->V)), v, n) {
+        // find next vertex of an unmarked boundary
+        if (!IS_VISITED2(v) && v->isOnBoundary()) {
+            w = v;
+            one_loop = new List;
+            // mark all vertices at this boundary
+            do {
+                one_loop->appendHead(w);
+                MARK_VISIT2(w);
+                w = w->nextOnBoundary();
+            } while (w != v);
+            boundary_loops.appendHead(one_loop);
+        }
+    }
+    FOREACHVVVERTEX((&(tin->V)), v, n) UNMARK_VISIT2(v);
 
-   while(triList.numels())
-   {
-    t = (Triangle *)triList.popHead();
-    if ((s = t->t1()) != NULL && s->info == NULL) {triList.appendHead(s); s->info = (void *)i;}
-    if ((s = t->t2()) != NULL && s->info == NULL) {triList.appendHead(s); s->info = (void *)i;}
-    if ((s = t->t3()) != NULL && s->info == NULL) {triList.appendHead(s); s->info = (void *)i;}
-   }
-  }
+    bloops_array = (List **)boundary_loops.toArray();
+    numloops = boundary_loops.numels();
 
-  if (i<2)
-  {
-   FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
-   JMesh::info("Mesh is a single component. Nothing done.");
-   return false;
-  }
+    int numtris = tin->T.numels();
+    double adist, mindist=DBL_MAX;
 
-  FOREACHVTTRIANGLE((&(tin->T)), t, n)
-  {
-   t->v1()->info = t->v2()->info = t->v3()->info = t->info;
-  }
+    gv=NULL;
+    for (i=0; i<numloops; i++) {
+        for (j=0; j<numloops; j++) {
+            // if i,j are indices of vertices of different boundary loops, search for the closes pair of vertices and update mindist
+            if (((Vertex *)bloops_array[i]->head()->data)->info != ((Vertex *)bloops_array[j]->head()->data)->info) {
+                adist = closestPair(bloops_array[i], bloops_array[j], &v, &w);
+                if (adist<mindist) {mindist=adist; gv=v; gw=w;}
+            }
+        }
+    }
+    if (gv!=NULL) tin->joinBoundaryLoops(gv, gw, 1, 0, 0);
 
-  FOREACHVVVERTEX((&(tin->V)), v, n) if (!IS_VISITED2(v) && v->isOnBoundary())
-  {
-   w = v;
-   one_loop = new List;
-   do
-   {
-    one_loop->appendHead(w); MARK_VISIT2(w);
-    w = w->nextOnBoundary();
-   } while (w != v);
-   boundary_loops.appendHead(one_loop);
-  }
-  FOREACHVVVERTEX((&(tin->V)), v, n) UNMARK_VISIT2(v);
+    FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
+    FOREACHVVVERTEX((&(tin->V)), v, n) v->info = NULL;
 
-  bloops_array = (List **)boundary_loops.toArray();
-  numloops = boundary_loops.numels();
+    free(bloops_array);
+    while ((one_loop=(List *)boundary_loops.popHead())!=NULL) delete one_loop;
 
-  int numtris = tin->T.numels();
-  double adist, mindist=DBL_MAX;
-
-  gv=NULL;
-  for (i=0; i<numloops; i++)
-   for (j=0; j<numloops; j++)
-	if (((Vertex *)bloops_array[i]->head()->data)->info != ((Vertex *)bloops_array[j]->head()->data)->info)
-	{
-	 adist = closestPair(bloops_array[i], bloops_array[j], &v, &w);
-	 if (adist<mindist) {mindist=adist; gv=v; gw=w;}
-	}
-
-  if (gv!=NULL) tin->joinBoundaryLoops(gv, gw, 1, 0, 0);
-
-  FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
-  FOREACHVVVERTEX((&(tin->V)), v, n) v->info = NULL;
-
-  free(bloops_array);
-  while ((one_loop=(List *)boundary_loops.popHead())!=NULL) delete one_loop;
-
-  return (gv!=NULL);
-}
-
-void joinTwoBiggestComponents(ExtTriMesh &tin) {
-
-    tin.deselectTriangles();
-    tin.invertSelection();
-    int nd=removeDegenerateTriangles(tin, 3);
-    tin.deselectTriangles();
-    tin.invertSelection();
-    tin.selectIntersectingTriangles();
-    tin.removeSelectedTriangles();
-    tin.fillSmallBoundaries(tin.E.numels(), true, true);
+    return (gv!=NULL);
 }
 
 //#define DISCLAIMER
 
 void usage()
 {
- printf("\nMeshFix V1.0 - by Marco Attene\n------\n");
- printf("Usage: MeshFix <meshfile1> [<meshfile2>] [-a <epsilon_angle>] [-w] [-s] [-n <n>]\n");
- printf("  Processes <meshfile1> and saves the result to <meshfile>_fixed.off\n");
- printf("  An optionally passed <meshfile2> is merged with the first one.");
+ printf("%s v%s - by %s.\n=====================================================\n", JMesh::app_name, JMesh::app_version, JMesh::app_authors);
+ printf("USAGE: meshfix <meshfile1> [<meshfile2>] [-a <epsilon_angle>] [-w] [-s] [-n <n>]\n");
+ printf("  Processes <meshfile1> and saves the result to <meshfile1>_fixed.off\n");
+ printf("  An optionally passed <meshfile2> is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
- printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
- printf(" -s                  Result is saved in STL     format instead of OFF.\n");
  printf(" -n <n>              Only the <n> biggest input components are kept.\n");
+ printf(" -j <d>              Join components closer than <d> or overlapping.\n");
+ printf(" -jc                 Join the closest pair of components.\n");
 // printf("  With '-u', uniform remeshing of the whole mesh.\n");
  printf(" --no-clean          Don't clean.\n");
- printf(" --no-join           Don't join the closest components.\n");
+ printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
+ printf(" -s                  Result is saved in STL     format instead of OFF.\n");
  printf("Accepted input formats are OFF, PLY and STL.\n  Other formats are supported only partially.\n");
  printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
@@ -437,14 +432,15 @@ int main(int argc, char *argv[])
 
  if (argc < 2) usage();
 
- bool join_closed_components = true;
- bool save_vrml = false;
- bool save_stl = false;
+ float par = 0;
+ unsigned numberComponentsToKeep = 1;
+ bool joinCloseOrOverlappingComponents = false;
+ float minAllowedDistance = 0;
+ bool haveJoinClosestComponents = false;
  bool uniformRemesh = false;
  bool clean = true;
- unsigned number_components_to_keep = 1;
- float par = 0;
- int n = 0;
+ bool save_vrml = false;
+ bool save_stl = false;
  for (int i=2; i<argc; i++)
  {
   if (!strcmp(argv[i], "-a"))
@@ -460,17 +456,23 @@ int main(int argc, char *argv[])
    }
   }
   else if (!strcmp(argv[i], "-n")) {
-      n = atoi(argv[i+1]);
-      if (n < 1) JMesh::error("# components to keep must be >= 1.\n");
-      number_components_to_keep = n;
-      JMesh::info("Keeping the biggest %d components.\n", n);
+      numberComponentsToKeep = atoi(argv[i+1]);
+      if (numberComponentsToKeep < 1) JMesh::error("# components to keep must be >= 1.\n");
+      JMesh::info("Keeping the biggest %d components.\n", numberComponentsToKeep);
       i++;
   }
   else if (!strcmp(argv[i], "-w")) save_vrml = true;
   else if (!strcmp(argv[i], "-s")) save_stl = true;
+  else if (!strcmp(argv[i], "-j")) {
+      joinCloseOrOverlappingComponents = true;
+      minAllowedDistance = atoi(argv[i+1]);
+      if (minAllowedDistance < 0) JMesh::error("minAllowedDistance must be >= 0.\n");
+      JMesh::info("Joining components closer than %f or overlapping.\n", minAllowedDistance);
+      i++;
+  }
   else if (!strcmp(argv[i], "-u")) uniformRemesh = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
-  else if (!strcmp(argv[i], "--no-join")) join_closed_components = false;
+  else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
   if (par) i++;
  }
@@ -482,7 +484,17 @@ int main(int argc, char *argv[])
      JMesh::info("Joining the two meshfiles %s %s.", argv[1], argv[2]);
  input_filename = argv[1];
 
- if (join_closed_components)
+ // Keep only the biggest components
+ int sc = tin.removeSmallestComponents( numberComponentsToKeep );
+ if (sc) JMesh::info("Removed %d small components\n", sc);
+
+ // Fill holes by taking into account both sampling density and normal field continuity
+ tin.fillSmallBoundaries(tin.E.numels(), true, true);
+
+ if (joinCloseOrOverlappingComponents) {
+     tin.joinCloseOrOverlappingComponents( minAllowedDistance );
+ }
+ if (haveJoinClosestComponents)
  {
   printf("\nJoining input components ...\n");
   JMesh::begin_progress();
@@ -491,25 +503,13 @@ int main(int argc, char *argv[])
   tin.deselectTriangles();
  }
 
- // Keep the two biggest components
-// joinTwoBiggestComponents(tin);
-
- // Keep only the biggest component
- int sc = tin.removeSmallestComponents( number_components_to_keep );
- if (sc) JMesh::warning("Removed %d small components\n",sc);
-// tin.initializeOctree();
-// return 0;
-
- // Fill holes by taking into account both sampling density and normal field continuity
- tin.fillSmallBoundaries(tin.E.numels(), true, true);
-
  if (uniformRemesh) {
 //     tin.uniformRemesh(); // not yet available, since absent in sources
  }
 
  // Run geometry correction
  if (clean) {
-     if (tin.boundaries() || !meshclean(tin, 10, 3, number_components_to_keep)) {
+     if (tin.boundaries() || !meshclean(tin, 10, 3, numberComponentsToKeep)) {
       fprintf(stderr,"MeshFix failed!\n");
       fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
       FILE *fp = fopen("meshfix_log.txt","a");
