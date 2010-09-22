@@ -19,13 +19,13 @@ src/holeFilling.cpp
 src/sparseLSystem.cpp
 src/mwExtensions.cpp
 src/triangleoctree.cpp
+src/smoothing.cpp
 )
 add_custom_command(
 	TARGET meshfix
 	PRE_LINK
-	COMMAND make
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-contrib/JMeshLib/
+    COMMAND make
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/contrib/JMeshLib/
 )
 add_executable(meshfix ${meshfix_src} ${meshfix_h} meshfix.cpp)
-target_link_libraries(meshfix jmesh nl)
+target_link_libraries(meshfix jmesh nl )

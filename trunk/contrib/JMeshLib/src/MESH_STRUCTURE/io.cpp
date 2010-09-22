@@ -138,7 +138,11 @@ bool seek_keyword(FILE *fp, const char *kw)
 {
  static char s[256];
  s[0]='\0';
- do fscanf(fp,"%255s",s); while (strcmp(s,kw) && !feof(fp));
+ do
+ {
+  if (!fscanf(fp,"%255s",s))
+      JMesh::error("fscanf %s:%d failed.", __FILE__, __LINE__);
+ } while (strcmp(s,kw) && !feof(fp));
  if (feof(fp)) return 0;
  return 1;
 }
@@ -391,7 +395,7 @@ int Triangulation::loadOFF(const char *fname)
 
  if ((fp = fopen(fname,"rb")) == NULL) return IO_CANTOPEN;
 
- fscanf(fp,"%255s",s);
+ if(!fscanf(fp,"%255s",s)) JMesh::error("fscanf %s:%d failed.", __FILE__, __LINE__);
  if (strcmp(s,"OFF") || feof(fp)) return IO_FORMAT;
  do {line = readLineFromFile(fp);} while (line[0] == '#' || line[0] == '\0' || !sscanf(line,"%256s",s));
  if (sscanf(line,"%d %d %d",&nv,&nt,&ne) < 3) return IO_FORMAT;
@@ -942,7 +946,10 @@ void ply_readOverhead(FILE *in, int format, int oh)
 {
  int i;
  static char token[1024];
- if (format == PLY_FORMAT_ASCII) for (i=0; i<oh; i++) fscanf(in, "%s", token);
+ if (format == PLY_FORMAT_ASCII)
+     for (i=0; i<oh; i++)
+         if(!fscanf(in, "%s", token))
+             JMesh::error("fscanf %s:%d failed.", __FILE__, __LINE__);
  else for (i=0; i<oh; i++) fgetc(in);
 }
 
@@ -982,11 +989,17 @@ int ply_readFIndices(FILE *in, int format, int ph, int *nv, int *x, int *y, int 
 
  ply_readOverhead(in, format, ph);
 
- if (format == PLY_FORMAT_ASCII) {fscanf(in,"%d %d %d %d", nv, x, y, z); return 1;}
+ if (format == PLY_FORMAT_ASCII)
+ {
+  if( !fscanf(in,"%d %d %d %d", nv, x, y, z) )
+   JMesh::error("fscanf %s:%d failed.", __FILE__, __LINE__);
+  return 1;
+ }
 
- fread(&nvs, 1, 1, in);
+ if( !fread(&nvs, 1, 1, in) ) JMesh::error("fread %s:%d failed.", __FILE__, __LINE__);
+
  *nv = (int)nvs;
- fread(vc, 4, 3, in);
+ if( !fread(vc, 4, 3, in) ) JMesh::error("fread %s:%d failed.", __FILE__, __LINE__);
  *x = vc[0]; *y = vc[1]; *z = vc[2];
 
  if (format == PLY_FORMAT_BIN_B)
@@ -1267,15 +1280,17 @@ int Triangulation::loadSTL(const char *fname)
 
  if ((fp = fopen(fname,"r")) == NULL) return IO_CANTOPEN;
 
- fscanf(fp,"%5s",kw);
+ if (!fscanf(fp,"%5s",kw)) JMesh::error("fscanf %s:%d failed.", __FILE__, __LINE__);
+
  if (strcmp(kw,"solid")) binary=1;
 
  JMesh::begin_progress();
 
  if (binary)
  {
-  fseek(fp, 80, SEEK_SET);
-  fread(&nt, 4, 1, fp);
+  if( !fseek(fp, 80, SEEK_SET) ) JMesh::error("fseek %s:%d failed.", __FILE__, __LINE__);
+
+  if( !fread(&nt, 4, 1, fp) ) JMesh::error("fread %s:%d failed.", __FILE__, __LINE__);
   for (i=0; i<nt; i++)
   {
    if ((i)%10000 == 0) JMesh::report_progress(NULL);

@@ -415,9 +415,8 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
     Triangle *t;
     int nt = 0;
     // fill components list
-    List components;
-    fillComponentsList(components);
-    FOREACHNODE(components, n)
+    List *components = getComponentsList();
+    FOREACHNODE(*components, n)
         sizeListMap[((unsigned)((List *)n->data)->numels())]=(List *)n->data;
     nt = 0;
     std::map<const unsigned, const List*>::const_reverse_iterator rit = sizeListMap.rbegin();
@@ -432,7 +431,7 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
         }
     }
     // delete components list
-    FOREACHNODE(components, n) delete((List *)n->data);
+    FOREACHNODE(*components, n) delete((List *)n->data);
     // if there are components that were unlinked
     if (nt) {
         d_boundaries = d_handles = d_shells = 1;

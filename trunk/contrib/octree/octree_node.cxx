@@ -62,8 +62,8 @@
 template< typename T_, int d_, typename A_ >
 octree_node<T_,d_,A_>::octree_node()
 {
-  this->_M_parent = 0;
-  this->_M_children = 0;
+  this->_M_parent = NULL;
+  this->_M_children = NULL;
 }
 
 /**\brief Root node constructor.
@@ -79,7 +79,7 @@ template< typename T_, int d_, typename A_ >
 octree_node<T_,d_,A_>::octree_node( octree_node_pointer parent, const value_type& data )
   : _M_parent( parent ), _M_data( data )
 {
-  this->_M_children = 0;
+  this->_M_children = NULL;
 }
 
 /**\brief Destructor.
@@ -123,6 +123,7 @@ bool octree_node<T_,d_,A_>::add_children()
     {
     octree_node_pointer child = this->_M_children + i;
     child->_M_parent = this;
+    child->_M_children = NULL;
     }
   return true;
 }
@@ -148,6 +149,7 @@ bool octree_node<T_,d_,A_>::add_children( const T_& child_initializer )
     octree_node_pointer child = this->_M_children + i;
     child->_M_parent = this->_M_parent;
     child->_M_data = child_initializer;
+    child->_M_children = NULL;
     }
   return true;
 }
@@ -168,7 +170,7 @@ bool octree_node<T_,d_,A_>::remove_children()
       this->_M_children[i].remove_children();
       }
     delete [] this->_M_children;
-    this->_M_children = 0;
+    this->_M_children = NULL;
     return true;
     }
   return false;
@@ -214,6 +216,15 @@ octree_node<T_,d_,A_>& octree_node<T_,d_,A_>::operator [] ( int child )
   return this->_M_children[child];
 }
 
+template< typename T_, int d_, typename A_ >
+octree_node<T_,d_,A_>* octree_node<T_,d_,A_>::getChild( int child )
+{
+  if ( ! this->_M_children )
+    {
+    throw vtkstd::domain_error( "Attempt to access children of an octree leaf node." );
+    }
+  return &this->_M_children[child];
+}
 /**\fn  template<typename T_, int d_=3, class A_> reference octree_node<T_,d_,A_>::operator * ()
   *\brief Provide access to the application-specific data.
   */
@@ -222,3 +233,9 @@ octree_node<T_,d_,A_>& octree_node<T_,d_,A_>::operator [] ( int child )
   *\brief Provide read-only access to the application-specific data.
   */
 
+template< typename T_, int d_, typename A_ >
+int octree_node<T_,d_,A_>::getLevel() {
+    if( _M_parent )
+        return _M_parent->getLevel() + 1;
+    return 0;
+}

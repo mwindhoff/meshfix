@@ -426,9 +426,9 @@ class Triangulation
  //! Remove all the triangles belonging to the shell containing 't0'. O(N).
  void 	   removeShell(Triangle *t0);
 
- //! Fills a list with components (lists of connected triangles) of the Triangulation.
+ //! Returns a list with components (lists of connected triangles) of the Triangulation.
  //! UNMARK_VISIT2() is applied to all triangles.
- void fillComponentsList(List &components);
+ List* getComponentsList();
 
  /////////////////////////////////////////////////////////////////////////////
  //

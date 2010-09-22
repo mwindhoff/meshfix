@@ -1159,9 +1159,9 @@ void Triangulation::removeShell(Triangle *t0)
  removeUnlinkedElements();
 }
 
-void Triangulation::fillComponentsList(List &components) {
+List* Triangulation::getComponentsList() {
     List todo;
-    List *component;
+    List *component, *components = new List();
     Triangle *t, *t1, *t2, *t3;
     Node *n;
     // unmark all triangles
@@ -1171,7 +1171,7 @@ void Triangulation::fillComponentsList(List &components) {
     // fill components list
     do {
         component = new List;
-        components.appendHead(component);
+        components->appendHead(component);
         todo.appendHead(t);
         while (todo.numels()) {
             t = (Triangle *)todo.head()->data;
@@ -1198,6 +1198,7 @@ void Triangulation::fillComponentsList(List &components) {
     } while (n != NULL);
     // unmark all triangles
     FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
+    return components;
 }
 
 
