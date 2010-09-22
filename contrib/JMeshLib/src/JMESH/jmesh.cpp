@@ -78,7 +78,7 @@ void JMesh::error(const char *msg, ...)
   display_message(fms, DISPMSG_ACTION_ERRORDIALOG);
  else
  {
-  fprintf(stderr,"", fms);
+  fprintf(stderr,"%s", fms);
   exit(-1);
  }
 }
@@ -98,7 +98,7 @@ void JMesh::warning(const char *msg, ...)
  if (display_message != NULL) 
   display_message(fms, DISPMSG_ACTION_PUTMESSAGE);
  else
-  fprintf(stderr,"", fms);
+  fprintf(stderr,"%s", fms);
 
  va_end(ap);
 }
@@ -118,7 +118,7 @@ void JMesh::info(const char *msg, ...)
  if (display_message != NULL) 
   display_message(fms, DISPMSG_ACTION_PUTMESSAGE);
  else
-  printf("", fms);
+  printf("%s", fms);
 
  va_end(ap);
 }
@@ -130,8 +130,8 @@ void JMesh::begin_progress()
  if (quiet) return;
  if (display_message != NULL) 
   display_message("\n", DISPMSG_ACTION_PUTNEWLINE);
-// else
-//  printf("\n");
+ else
+  printf("\n");
 }
 
 void JMesh::report_progress(const char *msg, ...)
@@ -181,4 +181,3 @@ void JMesh::end_progress()
  else
   printf("\n");
 }
-

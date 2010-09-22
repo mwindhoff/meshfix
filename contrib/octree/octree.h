@@ -1,8 +1,6 @@
 #ifndef __octree_h
 #define __octree_h
 
-#include <iostream>
-
 /**\brief An n-dimensional octree. Perhaps it should be named a tttntree (two-to-the n tree)?
   *
   * This templated class provides an n-dimensional binary tree, storing an

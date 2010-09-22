@@ -40,9 +40,9 @@ class ExtTriMesh : public Triangulation
  TriangleOctree *ot;
  // Constructors
  ExtTriMesh() : Triangulation() { ot = NULL; }
- ExtTriMesh(const char *s) : Triangulation(s) {}
- ExtTriMesh(const Triangulation *t) : Triangulation(t) {}
- ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) {}
+ ExtTriMesh(const char *s) : Triangulation(s) { ot = NULL; }
+ ExtTriMesh(const Triangulation *t) : Triangulation(t) { ot = NULL; }
+ ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) { ot = NULL; }
 
  Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
@@ -56,12 +56,12 @@ class ExtTriMesh : public Triangulation
  void initializeOctree();
  int  joinCloseOrOverlappingComponents( double minAllowedDistance = 1.0 );
  bool joinComponentsCloseBoundaries(List* nl, List *ml, double maxDistanceToJoin);
- //! Returns true, if the Point p is inside the component (list of triangles).
- //! True, if the angle between the normal of the triangle of the closest point
- //! and the vector between the center of that triangle and p is < 90°.
+ //! Returns true, if the Point p is inside the component. The component must be a
+ //! closed surface. Triangles of the surface must be recognizable using (t->mask & 1<<bit)>0.
+ //! This function needs an initialized octree.
  //! Warning: The normals must be directed outwards of each component!
- bool isPointInComponent(Point *p, List *component);
- void getComponentsVertices(List &component, List &vertexList);
+ bool isPointInComponent(Point *p, char bit);
+ List* getComponentsVertices(List *component);
 
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 

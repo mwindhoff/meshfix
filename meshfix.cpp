@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <jrs_predicates.h>
-#include <iostream>
 
 const char *input_filename;
 double epsilon_angle = 0.0;
@@ -379,8 +378,8 @@ bool joinClosestComponents(ExtTriMesh *tin) {
 void usage()
 {
  printf("%s v%s - by %s.\n=====================================================\n", JMesh::app_name, JMesh::app_version, JMesh::app_authors);
- printf("USAGE: meshfix <meshfile1> [<meshfile2>] [-a <epsilon_angle>] [-w] [-s] [-n <n>]\n");
- printf("  Processes <meshfile1> and saves the result to <meshfile1>_fixed.off\n");
+ printf("USAGE: meshfix <meshfile1> [<meshfile2>] [-a <epsilon_angle>] [-w] [-s] [-n <n>] [-o <output>]\n");
+ printf("  Processes <meshfile1> and saves the result to <meshfile1>_fixed.off.\n");
  printf("  An optionally passed <meshfile2> is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
@@ -391,6 +390,7 @@ void usage()
  printf(" --no-clean          Don't clean.\n");
  printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
  printf(" -s                  Result is saved in STL     format instead of OFF.\n");
+ printf(" -o <output>         Set the output filename (without extension).\n");
  printf("Accepted input formats are OFF, PLY and STL.\n  Other formats are supported only partially.\n");
  printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
@@ -441,8 +441,11 @@ int main(int argc, char *argv[])
  bool clean = true;
  bool save_vrml = false;
  bool save_stl = false;
+ bool haveOutputFile = false;
+ const char *outputFile;
  for (int i=2; i<argc; i++)
  {
+     printf("%s\n", argv[i]);
   if (!strcmp(argv[i], "-a"))
   {
    if (i<argc-1) par = (float)atof(argv[i+1]); else par = 0;
@@ -456,23 +459,36 @@ int main(int argc, char *argv[])
    }
   }
   else if (!strcmp(argv[i], "-n")) {
-      numberComponentsToKeep = atoi(argv[i+1]);
-      if (numberComponentsToKeep < 1) JMesh::error("# components to keep must be >= 1.\n");
-      JMesh::info("Keeping the biggest %d components.\n", numberComponentsToKeep);
-      i++;
+      if (i<argc-1) {
+          numberComponentsToKeep = atoi(argv[i+1]);
+          printf("%d\n", numberComponentsToKeep);
+          JMesh::info("Keeping the biggest %d components.\n", numberComponentsToKeep);
+          if (numberComponentsToKeep < 1)
+              JMesh::error("# components to keep must be >= 1.\n");
+          i++;
+      }
   }
   else if (!strcmp(argv[i], "-w")) save_vrml = true;
   else if (!strcmp(argv[i], "-s")) save_stl = true;
   else if (!strcmp(argv[i], "-j")) {
-      joinCloseOrOverlappingComponents = true;
-      minAllowedDistance = atoi(argv[i+1]);
-      if (minAllowedDistance < 0) JMesh::error("minAllowedDistance must be >= 0.\n");
-      JMesh::info("Joining components closer than %f or overlapping.\n", minAllowedDistance);
-      i++;
+      if (i<argc-1) {
+          minAllowedDistance = atof(argv[i+1]);
+          joinCloseOrOverlappingComponents = true;
+          if (minAllowedDistance < 0) JMesh::error("minAllowedDistance must be >= 0.\n");
+          JMesh::info("Joining components closer than %f or overlapping.\n", minAllowedDistance);
+          i++;
+      }
   }
   else if (!strcmp(argv[i], "-u")) uniformRemesh = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
+  else if (!strcmp(argv[i], "-o")) {
+      if (i<argc-1) {
+          haveOutputFile = true;
+          outputFile = argv[i+1];
+      }
+      i++;
+  }
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
   if (par) i++;
  }
@@ -484,12 +500,12 @@ int main(int argc, char *argv[])
      JMesh::info("Joining the two meshfiles %s %s.", argv[1], argv[2]);
  input_filename = argv[1];
 
- // Keep only the biggest components
- int sc = tin.removeSmallestComponents( numberComponentsToKeep );
- if (sc) JMesh::info("Removed %d small components\n", sc);
+ // // Keep only the biggest components
+// int sc = tin.removeSmallestComponents( numberComponentsToKeep );
+// if (sc) JMesh::info("Removed %d small components\n", sc);
 
  // Fill holes by taking into account both sampling density and normal field continuity
- tin.fillSmallBoundaries(tin.E.numels(), true, true);
+// tin.fillSmallBoundaries(tin.E.numels(), true, true);
 
  if (joinCloseOrOverlappingComponents) {
      tin.joinCloseOrOverlappingComponents( minAllowedDistance );
@@ -517,7 +533,7 @@ int main(int argc, char *argv[])
       fclose(fp);
      }
  }
- char *fname = createFilename(argv[1], subext, (save_vrml? ".wrl" : (save_stl? ".stl":".off")));
+ char *fname = createFilename( haveOutputFile ? outputFile : argv[1], subext, (save_vrml? ".wrl" : (save_stl? ".stl":".off")));
  printf("Saving output mesh to '%s'\n",fname);
  if (save_vrml)
      tin.saveVRML1(fname);

@@ -1,6 +1,8 @@
 #ifndef __octree_node
 #define __octree_node
+#include <stdio.h>
 
+#include "point.h"
 //#include <vtkstd/iterator>
 
 template< typename T_, int d_, typename A_ > class octree;
@@ -20,6 +22,7 @@ template< typename T_, int d_, typename A_ > class octree;
 template< typename T_, int d_ = 3, typename A_ = vtkstd::allocator<T_> >
 struct octree_node
 {
+public:
   typedef octree<T_,d_,A_>* octree_pointer;
   typedef octree_node<T_,d_,A_>* octree_node_pointer;
   typedef const octree_node<T_,d_,A_>* const_octree_node_pointer;
@@ -39,7 +42,7 @@ struct octree_node
   octree_node( octree_node_pointer parent, const value_type& data );
   ~octree_node();
 
-  bool is_leaf_node() const { return this->_M_children == 0; }
+  bool is_leaf_node() const { return this->_M_children == NULL; }
   int num_children() const { return this->_M_children ? (1<<d_) : 0; }
   bool add_children();
   bool add_children( const T_& child_initializer );
@@ -47,7 +50,11 @@ struct octree_node
 
   reference value() { return this->_M_data; }
   reference value() const { return this->_M_data; }
+  pointer valuePtr() { return &this->_M_data; }
+  pointer valuePtr() const { return &this->_M_data; }
 
+  int getLevel();
+  octree_node_pointer getChild(int i);
   const_octree_node_reference operator [] ( int child ) const;
   octree_node_reference operator [] ( int child );
 

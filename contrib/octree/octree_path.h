@@ -38,6 +38,15 @@ public:
 
   size_type level() const { return this->_M_parents.size(); }
 
+  const_path toConstPath() { return const_path(this->_M_root, this->_M_indices); };
+  path toPath() { return path(this->_M_root, this->_M_indices); };
+  void print() {
+      printf("Path: ");
+      for( int i = 0; i < _M_indices.size(); i++)
+          printf("%s%d",i>0?", ":"",_M_indices[i]);
+      printf("%s\n",_M_current_node ==_M_root ? "root.":"");
+  }
+
   self_path& operator = ( const path& it );
 #if ! ( defined(_MSC_VER) && (_MSC_VER < 1300) )
   self_path& operator = ( const const_path& src );

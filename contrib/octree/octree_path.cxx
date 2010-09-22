@@ -105,7 +105,7 @@ octree_path<T_,R_,P_,O_,OP_,d_>::octree_path( octree_node_pointer root, vtkstd::
     {
     this->_M_parents.push_back( this->_M_current_node );
     this->_M_indices.push_back( *cit );
-    this->_M_current_node = (*this->_M_current_node)[*cit];
+    this->_M_current_node = &((*this->_M_current_node)[*cit]);
     }
 }
 
