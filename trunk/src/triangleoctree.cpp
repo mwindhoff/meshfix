@@ -112,40 +112,43 @@ TriangleOctree::cursor::path TriangleOctree::getPathForPointList(List& l, bool a
 List* TriangleOctree::getTriangleListFromPathDown(const TriangleOctree::cursor::const_path p) {
     TriangleOctree::cursor cs(p);
     List *l = new List();
+    l->appendList(cs->valuePtr());
     if(!cs->is_leaf_node()) {
         cs.down(0); // 0 0 0
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(0); // 1 0 0
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(1); // 1 1 0
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(0); // 0 1 0
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(2); // 0 1 1
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(0); // 1 1 1
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(1); // 1 0 1
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
         cs.axis_partner(0); // 0 0 1
-        l->joinTailList(getTriangleListFromPathDown(cs.toConstPath()));
+        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
     }
     return l;
 }
 
 List* TriangleOctree::getTriangleListFromPathUp(const TriangleOctree::cursor::const_path p) {
     cursor cs(p);
-    List *l = cs->valuePtr();
-    while(cs.level()) {
+    List *l = new List();
+    if(cs.level()) {
         cs.up();
-        l->joinTailList(cs->valuePtr());
+        l->appendList(cs->valuePtr());
+        l->appendList(getTriangleListFromPathUp(cs.toConstPath()));
     }
     return l;
 }
 
 List* TriangleOctree::getTriangleListFromPath(const TriangleOctree::cursor::const_path p) {
-    List *l = getTriangleListFromPathUp(p);
-    l->joinTailList(getTriangleListFromPathDown(p));
+    List *l = new List();
+    l->appendList(getTriangleListFromPathUp(p));
+    l->appendList(getTriangleListFromPathDown(p));
     return l;
 }
 
@@ -155,11 +158,11 @@ void TriangleOctree::removeUnlinkedTriangles() {
         List *l = it->valuePtr();
         List *tmp = new List();
         Triangle *t;
-        while( t = (Triangle*) it->value().popHead() ) {
+        while( t = (Triangle*) it->valuePtr()->popHead() ) {
             if( t && t->isLinked() )
                 tmp->appendTail(t);
         }
-        l->joinTailList(tmp);
+        l->appendList(tmp);
     }
 }
 

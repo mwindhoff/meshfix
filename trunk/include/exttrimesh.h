@@ -60,7 +60,7 @@ class ExtTriMesh : public Triangulation
  //! closed surface. Triangles of the surface must be recognizable using (t->mask & 1<<bit)>0.
  //! This function needs an initialized octree.
  //! Warning: The normals must be directed outwards of each component!
- bool isPointInComponent(Point *p, char bit);
+ bool isPointInComponent(Point *p, char bit, Point *center, double *innerSphereRadius, double *outerSphereRadius);
  List* getComponentsVertices(List *component);
 
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")

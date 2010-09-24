@@ -134,9 +134,8 @@ Point Triangle::getCircleCenter() const
 bool Triangle::inSphere(const Point *p) const
 {
  Point c = getCircleCenter();
- double rad = c.distance(e1->v1);
-
- return (p->distance(c) < rad);
+ double rad = c.squaredDistance(e1->v1);
+ return (p->squaredDistance(&c) < rad);
 }
 
 
@@ -402,7 +401,7 @@ void Triangle::printTriangle(FILE *fp) const
  v3()->printPoint(fp);
 }
 
-void Triangle::unlinkEdges() {
+void Triangle::unlinkEdgesWithNodes() {
     if (e1 != NULL) {
         if (e1->v1 != NULL) e1->v1->e0 = NULL;
         if (e1->v2 != NULL) e1->v2->e0 = NULL;
