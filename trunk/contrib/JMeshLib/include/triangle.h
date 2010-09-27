@@ -199,7 +199,7 @@ class Triangle
  void printTriangle(FILE *f =stdout) const;
 
  //! Unlink all edges and vertices of the triangle
- void unlinkEdgesWithNodes();
+ void unlinkEdgesWithVertices();
 };
 
 #endif // _TRIANGLE_H

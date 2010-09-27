@@ -59,3 +59,4 @@ contrib/JMeshLib/src/PRIMITIVES/dijkstraGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/clusterGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/binTree.cpp
 src/smoothing.cpp
+test/test_join_components.sh

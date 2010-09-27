@@ -12,21 +12,38 @@ void ExtTriMesh::initializeOctree() {
     FOREACHTRIANGLE(t, n) {
         ot->addTriangle(t);
     }
-//    printf("nT: %d\n", T.numels());
-//    TriangleOctree::iterator it = ot->begin(false);
-//    int sum = 0, counter = 0;
-//    for ( ; it != ot->end(false); ++it ) {
-//        sum += it->value().numels();
-//        if( it->value().numels() > 0 ) {
-//            FOREACHVTTRIANGLE(it->valuePtr(), t, n) {
-//                if( t->getCircleCenter().distance(t->v1()) > bbwidth/(1<<(it->getLevel())) )
-//                    counter++;
-//            }
-//        }
-//    }
-//    printf( "sum: %d, counter: %d, badCounter: %d\n", sum, counter);
 }
 
+struct ComponentStruct {
+    List *triangles;
+    List *hierarchyTriangles;
+    Point center;
+    double inSphereRadius2;
+    double outSphereRadius2;
+    void initializeRadiiAndCenter() {
+        Triangle *t; Node *n;
+        inSphereRadius2 = DBL_MAX;
+        outSphereRadius2 = 0;
+        center = Point();
+        FOREACHVTTRIANGLE(triangles, t, n) center += t->getCenter();
+        center /= triangles->numels();
+        FOREACHVTTRIANGLE(triangles, t, n) {
+            double d1 = t->v1()->squaredDistance(&center);
+            double d2 = t->v2()->squaredDistance(&center);
+            double d3 = t->v3()->squaredDistance(&center);
+            inSphereRadius2 = MIN(inSphereRadius2, MIN(d1, MIN(d2, d3)));
+            outSphereRadius2 = MAX(outSphereRadius2, MAX(d1, MAX(d2, d3)));
+        }
+    }
+    void markBit(unsigned b) {
+        Triangle *t; Node *n;
+        FOREACHVTTRIANGLE(triangles, t, n) MARK_BIT(t,b);
+    }
+    void unmarkBit(unsigned b) {
+        Triangle *t; Node *n;
+        FOREACHVTTRIANGLE(triangles, t, n) UNMARK_BIT(t,b);
+    }
+};
 /**
  * Joins close or overlapping components of triangles.
  * Algorithm sketch:
@@ -53,13 +70,7 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
     unsigned i = 0, j = 0;
     // fill components list
     bool need_unlink = false;
-    struct {
-        List *triangles;
-        List *hierarchyTriangles;
-        Point center;
-        double inSphereRadius2;
-        double outSphereRadius2;
-    } cn, cm; // component structs
+    ComponentStruct cn, cm; // component structs
     do {
         i = 0;
         need_unlink = false;
@@ -75,16 +86,14 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                 List pointList;
                 cn.triangles = (List*)n->data;
                 cm.triangles = (List*)m->data;
-                cn.center = Point();
+                cn.initializeRadiiAndCenter();
                 // mark1 triangles of component n
                 FOREACHVTTRIANGLE(cn.triangles, t, nn) {
                     pointList.appendTail(t->v1());
                     pointList.appendTail(t->v2());
                     pointList.appendTail(t->v3());
                     MARK_BIT(t,1);
-                    cn.center += t->getCenter();
                 }
-                cn.center /= cn.triangles->numels();
                 cn.hierarchyTriangles = ot->getTriangleListFromPath(
                         ot->getPathForPointList(pointList, false).toConstPath());
                 bool found = false;
@@ -99,13 +108,6 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                 if(found) { // other triangles in the hierarchy of n found, overlap possible
                     JMesh::info(" Other triangles in the hierarchy of %d found, overlap possible.\n",i);
                     found = false;
-                    cn.inSphereRadius2 = DBL_MAX;
-                    cn.outSphereRadius2 = 0;
-                    FOREACHVTTRIANGLE(cn.triangles, t, nn) {
-                        double d = t->getCenter().squaredDistance(&cn.center);
-                        if(d < cn.inSphereRadius2) cn.inSphereRadius2 = d;
-                        if(d > cn.outSphereRadius2) cn.outSphereRadius2 = d;
-                    }
                     // mark2 all triangles of component n, that contain a point inside m
                     FOREACHVTTRIANGLE(cm.triangles, t, nn) {
                         if( IS_BIT(t,0) && // t was in hierarchy of component n (and could possible overlap with it)
@@ -118,27 +120,17 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                             found_counter++;
                         }
                     }
-                    printf("12\n");
                     if(found) { // triangles of m inside of n found, reverse overlap possible
                         JMesh::info(" %d triangles of %d inside of %d found, searching for triangles of %d in %d.\n", found_counter, j, i, i, j);
                         pointList.removeNodes();
                         // mark3 triangles of m
-                        cm.center = Point();
                         FOREACHVTTRIANGLE(cm.triangles, t, nn) {
                             pointList.appendTail(t->v1());
                             pointList.appendTail(t->v2());
                             pointList.appendTail(t->v3());
                             MARK_BIT(t,3);
-                            cm.center += t->getCenter();
                         }
-                        cm.center /= cm.triangles->numels();
-                        cm.inSphereRadius2 = DBL_MAX;
-                        cm.outSphereRadius2 = 0;
-                        FOREACHVTTRIANGLE(cm.triangles, t, nn) {
-                            double d = t->getCenter().squaredDistance(&cm.center);
-                            if(d < cm.inSphereRadius2) cm.inSphereRadius2 = d;
-                            if(d > cm.outSphereRadius2) cm.outSphereRadius2 = d;
-                        }
+                        cm.initializeRadiiAndCenter();
                         cm.hierarchyTriangles = ot->getTriangleListFromPath(
                                 ot->getPathForPointList(pointList, false).toConstPath());
                         found_counter = 0;
@@ -157,30 +149,32 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                         JMesh::info(" %d triangles of %d in %d found.\n", found_counter, i, j);
                         cm.hierarchyTriangles->removeNodes();
                         // unmark3 triangles of m again
-                        FOREACHVTTRIANGLE(cm.triangles, t, nn) UNMARK_BIT(t,3);
+                        cm.unmarkBit(3);
                     } else JMesh::info(" No triangles of %d in %d found.\n", i, j);
                 }
+                pointList.removeNodes();
                 // unmark0 triangles in hierarchy of n again, that are not part of n
                 FOREACHVTTRIANGLE(cn.hierarchyTriangles, t, nn) UNMARK_BIT(t,0);
-                // mark triangles of n within the minAllowedDistance of any triangle of m for deletion
+                // mark for deletion triangles within the minAllowedDistance of any not yet deleted triangle
                 double minAllowedDistance2 = minAllowedDistance*minAllowedDistance;
-                FOREACHVTTRIANGLE(cm.triangles, t, nn) {
+                FOREACHVTTRIANGLE(cm.triangles, t, mm) {
                     if(!IS_BIT(t,2)) { // if the t is not already marked for deletion
                         Point cc = t->getCircleCenter();
-                        List *closeTriangles = ot->getTriangleListFromPath(
-                                ot->getPathForSphere(cc, minAllowedDistance, false).toConstPath());
-                        FOREACHVTTRIANGLE(closeTriangles, t2, mm) {
+                        FOREACHVTTRIANGLE(cn.triangles, t2, nn) {
                             if ( !IS_BIT(t2,2) && // if the t2 is not already marked for deletion
-                                 IS_BIT(t2,1) && // is part of component n
+                                 (!IS_BIT(t,3) || !IS_BIT(t2,3)) && // one of them is not yet marked for later deletion
                                  ( t2->getCircleCenter().squaredDistance(&cc) <  minAllowedDistance2 )) {
-                                // mark both triangles for deletion
-                                MARK_BIT(t2,2);
+                                // mark3 both triangles (for later deletion)
+                                MARK_BIT(t,3);
+                                MARK_BIT(t2,3);
                                 need_unlink = true;
                             }
                         }
-                        closeTriangles->removeNodes();
                     }
                 }
+                // mark2 all triangles for deletion which are marked3
+                FOREACHVTTRIANGLE(cn.triangles, t, nn) if(IS_BIT(t,3)) MARK_BIT(t,2);
+                FOREACHVTTRIANGLE(cm.triangles, t, nn) if(IS_BIT(t,3)) MARK_BIT(t,2);
                 cn.hierarchyTriangles->removeNodes();
                 // delete marked2 triangles, now both components should have at least one boundary loop
                 if (need_unlink) {
@@ -206,21 +200,17 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                     JMesh::info(" Deleted %d triangles\n", deletion_counter);
                     ot->removeUnlinkedTriangles();
                     d_boundaries = d_handles = d_shells = 1;
-                    removeUnlinkedElements();
-                    // check if both components have a boundary loop and join them
-                    // TODO: factor 1.5 needed?
-//                    JMesh::info(" Joining close boundaries of %d,%d\n", i,j);
-//                    if( joinComponentsCloseBoundaries(nl, ml, minAllowedDistance*1.5 ) ) {
-//                        // break out of the components loop, reinitialize the components list,
-//                        // since the number of the components has changed now
-//                        break;
-//                    }
+                    this->removeUnlinkedElements();
                     this->unmarkEverything();
                     this->eulerUpdate();
+                    return 1;
+                    if( joinComponentsCloseBoundaries(cn.triangles, cm.triangles, minAllowedDistance) )
+                        printf("true\n");
                     const char *msg = this->checkConnectivity();
                     if(msg)
                         JMesh::error(msg);
-                    return 1;
+                    // check if both components have a boundary loop and join them
+                    // TODO: factor 1.5 needed?
                 }
                 m = m->next();
                 j++;
@@ -235,51 +225,88 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
 }
 
 bool ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double maxDistanceToJoin) {
-    Vertex *v,*w;
     Node *n, *m, *nn;
-    List *vertexList, nBoundaryLoops, mBoundaryLoops, *one_loop;
+    Vertex *v,*w, *v1, *v2, *v3;
+    Triangle *t, *t1, *t2, *t3;
+    List *vertexList = new List(), *nBoundaryLoops = new List(), *mBoundaryLoops = new List(), *one_loop = new List();
     List **nBoundaryLoopsArray;
-    // create list of list boundary loops of component n (= list of vertices)
-    vertexList = getComponentsVertices(nl);
-    FOREACHVVVERTEX(vertexList, v, n) {
-        // find next vertex of an unmarked boundary
-        if (IS_BIT(v,1) && !v->isOnBoundary()) continue;
-        w = v;
-        one_loop = new List;
-        do { // mark all vertices at this boundary
-            one_loop->appendHead(w);
-            MARK_BIT(w,1);
-            w = w->nextOnBoundary();
-        } while (w != v);
-        nBoundaryLoops.appendHead(one_loop);
-    }
-    FOREACHVVVERTEX(vertexList, v, n) UNMARK_BIT(v,1);
-    vertexList->removeNodes();
-    // create list of list boundary loops of component m (= list of vertices)
-    vertexList = getComponentsVertices(ml);
-    FOREACHVVVERTEX(vertexList, v, n) {
-        // find next vertex of an unmarked boundary
-        if (IS_BIT(v,1) && !v->isOnBoundary()) continue;
-        w = v;
-        one_loop = new List;
-        do { // mark all vertices at this boundary
-            one_loop->appendHead(w);
-            MARK_BIT(w,1);
-            w = w->nextOnBoundary();
-        } while (w != v);
-        mBoundaryLoops.appendHead(one_loop);
-    }
-    FOREACHVVVERTEX(vertexList, v, n) UNMARK_BIT(v,1);
+    // create list of vertices of component n
+    t = (Triangle*)nl->head()->data;
+    List todo(t); MARK_BIT(t,2);
+    while (todo.numels()) {
+        t = (Triangle *)todo.popHead();
+        t1 = t->t1(); t2 = t->t2(); t3 = t->t3();
+        v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
+        if (!IS_VISITED(v1)) {MARK_VISIT(v1); vertexList->appendHead(v1);}
+        if (!IS_VISITED(v2)) {MARK_VISIT(v2); vertexList->appendHead(v2);}
+        if (!IS_VISITED(v3)) {MARK_VISIT(v3); vertexList->appendHead(v3);}
 
-    nBoundaryLoopsArray = (List **)nBoundaryLoops.toArray();
-    unsigned nNumLoops = nBoundaryLoops.numels();
+        if (t1 != NULL && !IS_BIT(t1,2)) {MARK_BIT(t1,2); todo.appendHead(t1);}
+        if (t2 != NULL && !IS_BIT(t2,2)) {MARK_BIT(t2,2); todo.appendHead(t2);}
+        if (t3 != NULL && !IS_BIT(t3,2)) {MARK_BIT(t3,2); todo.appendHead(t3);}
+    }
+    FOREACHVTTRIANGLE(nl, t, n) UNMARK_BIT(t,2);
+    printf("vln: %d, n: %d\n", vertexList->numels(), nl->numels());
+    // create list of list boundary loops of component n (= list of vertices)
+    FOREACHVVVERTEX(vertexList, v, n) {
+        // find next vertex of an unmarked boundary
+        if (!IS_BIT(v,2) && v->isOnBoundary()) {
+            w = v;
+            do { // mark all vertices at this boundary
+                one_loop->appendHead(w);
+                MARK_BIT(w,2);
+                w = w->nextOnBoundary();
+            } while (w != v);
+            nBoundaryLoops->joinTailList(one_loop);
+        }
+    }
+    FOREACHVVVERTEX(vertexList, v, n) {UNMARK_BIT(v,1); UNMARK_BIT(v,2);}
+    vertexList->removeNodes();
+    // create list of vertices of component m
+    t = (Triangle*)ml->head()->data;
+    todo.appendHead(t); MARK_BIT(t,2);
+    while (todo.numels()) {
+        t = (Triangle *)todo.popHead();
+        t1 = t->t1(); t2 = t->t2(); t3 = t->t3();
+        v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
+        if (!IS_VISITED(v1)) {MARK_VISIT(v1); vertexList->appendHead(v1);}
+        if (!IS_VISITED(v2)) {MARK_VISIT(v2); vertexList->appendHead(v2);}
+        if (!IS_VISITED(v3)) {MARK_VISIT(v3); vertexList->appendHead(v3);}
+
+        if (t1 != NULL && !IS_BIT(t1,2)) {MARK_BIT(t1,2); todo.appendHead(t1);}
+        if (t2 != NULL && !IS_BIT(t2,2)) {MARK_BIT(t2,2); todo.appendHead(t2);}
+        if (t3 != NULL && !IS_BIT(t3,2)) {MARK_BIT(t3,2); todo.appendHead(t3);}
+    }
+    FOREACHVTTRIANGLE(ml, t, n) UNMARK_BIT(t,2);
+    printf("vln: %d, n: %d\n", vertexList->numels(), ml->numels());
+    // create list of list boundary loops of component m (= list of vertices)
+    FOREACHVVVERTEX(vertexList, v, n) {
+        // find next vertex of an unmarked boundary
+        if (!IS_BIT(v,2) && v->isOnBoundary()) {
+            w = v;
+            do { // mark all vertices at this boundary
+                one_loop->appendHead(w);
+                MARK_BIT(w,2);
+                w = w->nextOnBoundary();
+            } while (w != v);
+            mBoundaryLoops->joinTailList(one_loop);
+        }
+    }
+    FOREACHVVVERTEX(vertexList, v, n) {UNMARK_BIT(v,1); UNMARK_BIT(v,2);}
+    vertexList->removeNodes();
+    nBoundaryLoopsArray = (List **)nBoundaryLoops->toArray();
+    unsigned nNumLoops = nBoundaryLoops->numels();
     bool allVerticesHaveClosePartner = false;
     double maxDistanceToJoin2 = maxDistanceToJoin*maxDistanceToJoin;
     bool ret = false;
+    int j = 0;
+    printf("nNumLoops %d, mNumLoops %d\n", nNumLoops, mBoundaryLoops->numels());
     for (unsigned i = 0; i < nNumLoops; i++) {
-        nn = mBoundaryLoops.head();
+        printf("nLoops %d\n", i);
+        nn = mBoundaryLoops->head();
         do {
-            allVerticesHaveClosePartner = false;
+            printf("mLoops %d\n", j++);
+            allVerticesHaveClosePartner = true;
             FOREACHVVVERTEX(nBoundaryLoopsArray[i], v, n) {
                 bool foundClosePartner = false;
                 FOREACHVVVERTEX(((List*)nn->data), w, m) {
@@ -293,18 +320,19 @@ bool ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double maxDis
                     break;
                 }
             }
+            JMesh::info(" allVerticesHaveClosePartner: %d\n", allVerticesHaveClosePartner);
             if ( allVerticesHaveClosePartner ) {
                 joinBoundaryLoops(v, w, true, true, true);
                 ret = true;
-                mBoundaryLoops.freeCell(nn);
+                mBoundaryLoops->freeCell(nn);
                 break;
             }
             nn = nn->next();
         } while ( nn != NULL );
     }
     delete(nBoundaryLoopsArray);
-    while ((one_loop=(List *)nBoundaryLoops.popHead())!=NULL) delete one_loop;
-    while ((one_loop=(List *)mBoundaryLoops.popHead())!=NULL) delete one_loop;
+    while ((one_loop=(List *)nBoundaryLoops->popHead())!=NULL) delete one_loop;
+    while ((one_loop=(List *)mBoundaryLoops->popHead())!=NULL) delete one_loop;
     return ret;
 }
 
@@ -337,36 +365,3 @@ bool ExtTriMesh::isPointInComponent(Point *p, char bit, Point *center, double *i
     return false;
 }
 
-List* ExtTriMesh::getComponentsVertices(List *component) {
-    Triangle *t, *t1, *t2, *t3;
-    List todo;
-    List *vertexList = new List();
-    todo.appendHead(component->head());
-    while (todo.numels()) {
-        t = (Triangle *)todo.popHead();
-        if (!IS_BIT(t,0)) {
-            if(!IS_BIT(t->v1(),0)) {
-                vertexList->appendTail(t->v1());
-                MARK_BIT(t->v1(),0);
-            }
-            if(!IS_BIT(t->v2(),0)) {
-                vertexList->appendTail(t->v1());
-                MARK_BIT(t->v2(),0);
-            }
-            if(!IS_BIT(t->v3(),0)) {
-                vertexList->appendTail(t->v1());
-                MARK_BIT(t->v3(),0);
-            }
-            t1 = t->t1(); t2 = t->t2(); t3 = t->t3();
-            if (t1 != NULL && !IS_BIT(t1,0)) todo.appendHead(t1);
-            if (t2 != NULL && !IS_BIT(t2,0)) todo.appendHead(t2);
-            if (t3 != NULL && !IS_BIT(t3,0)) todo.appendHead(t3);
-            MARK_BIT(t,0);
-        }
-    }
-    Node *n;
-    Vertex *v;
-    FOREACHVTTRIANGLE(component, t, n) UNMARK_BIT(t,0);
-    FOREACHVVVERTEX(vertexList, v, n) UNMARK_BIT(v,0);
-    return vertexList;
-}

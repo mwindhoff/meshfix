@@ -426,7 +426,7 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
     for( unsigned i = 0; i < number_to_keep && rit != sizeListMap.rend(); i++) rit++;
     for(; rit != sizeListMap.rend(); rit++) {
         FOREACHVTTRIANGLE(rit->second, t, m) {
-            t->unlinkEdgesWithNodes();
+            t->unlinkEdgesWithVertices();
             nt++;
         }
     }

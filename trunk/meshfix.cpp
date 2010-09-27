@@ -293,7 +293,7 @@ double closestPair(List *bl1, List *bl2, Vertex **closest_on_bl1, Vertex **close
 /**
  * Joins the closest components, that have boundaries (holes).
  */
-bool joinClosestComponents(ExtTriMesh *tin) {
+bool joinClosestComponents(ExtTriMesh *tin, bool justconnect = false, bool refine = true, bool fair = true) {
     Vertex *v,*w, *gv, *gw;
     Triangle *t, *s;
     Node *n;
@@ -362,7 +362,7 @@ bool joinClosestComponents(ExtTriMesh *tin) {
             }
         }
     }
-    if (gv!=NULL) tin->joinBoundaryLoops(gv, gw, 1, 0, 0);
+    if (gv!=NULL) tin->joinBoundaryLoops(gv, gw, justconnect, refine, fair);
 
     FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info = NULL;
     FOREACHVVVERTEX((&(tin->V)), v, n) v->info = NULL;
@@ -445,7 +445,6 @@ int main(int argc, char *argv[])
  const char *outputFile;
  for (int i=2; i<argc; i++)
  {
-     printf("%s\n", argv[i]);
   if (!strcmp(argv[i], "-a"))
   {
    if (i<argc-1) par = (float)atof(argv[i+1]); else par = 0;
@@ -461,7 +460,6 @@ int main(int argc, char *argv[])
   else if (!strcmp(argv[i], "-n")) {
       if (i<argc-1) {
           numberComponentsToKeep = atoi(argv[i+1]);
-          printf("%d\n", numberComponentsToKeep);
           JMesh::info("Keeping the biggest %d components.\n", numberComponentsToKeep);
           if (numberComponentsToKeep < 1)
               JMesh::error("# components to keep must be >= 1.\n");
@@ -497,7 +495,7 @@ int main(int argc, char *argv[])
  if (tin.load(argv[1]) != 0) JMesh::error("Can't open file.\n");
  // Join the second input argument if existing
  if (tin.append(argv[2]) == 0)
-     JMesh::info("Joining the two meshfiles %s %s.", argv[1], argv[2]);
+     JMesh::info("Joining the two meshfiles %s %s.\n", argv[1], argv[2]);
  input_filename = argv[1];
 
  // // Keep only the biggest components
@@ -514,7 +512,7 @@ int main(int argc, char *argv[])
  {
   printf("\nJoining input components ...\n");
   JMesh::begin_progress();
-  while (joinClosestComponents(&tin)) JMesh::report_progress("Num. components: %d       ",tin.shells());
+  while (joinClosestComponents(&tin, false, true, false)) JMesh::report_progress("Num. components: %d       ",tin.shells());
   JMesh::end_progress();
   tin.deselectTriangles();
  }
