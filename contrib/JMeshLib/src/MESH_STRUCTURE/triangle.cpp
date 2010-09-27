@@ -401,7 +401,7 @@ void Triangle::printTriangle(FILE *fp) const
  v3()->printPoint(fp);
 }
 
-void Triangle::unlinkEdgesWithNodes() {
+void Triangle::unlinkEdgesWithVertices() {
     if (e1 != NULL) {
         if (e1->v1 != NULL) e1->v1->e0 = NULL;
         if (e1->v2 != NULL) e1->v2->e0 = NULL;

@@ -61,7 +61,6 @@ class ExtTriMesh : public Triangulation
  //! This function needs an initialized octree.
  //! Warning: The normals must be directed outwards of each component!
  bool isPointInComponent(Point *p, char bit, Point *center, double *innerSphereRadius, double *outerSphereRadius);
- List* getComponentsVertices(List *component);
 
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 

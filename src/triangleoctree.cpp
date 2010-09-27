@@ -48,7 +48,8 @@ TriangleOctree::cursor::path TriangleOctree::getPathForSphere(const Point &spher
     double octantWidth = this->_M_size;
     while(true) {
         if(cs->is_leaf_node() && !addChildren) break;
-        if( sphereCenter.distance(octantCenter) > sphereRadius ) {
+        Point d = (sphereCenter-octantCenter);
+        if(MIN(fabs(d.x), MIN(fabs(d.y), fabs(d.z))) > sphereRadius && octantWidth/4 > sphereRadius) {
             unsigned idx = 0;
             octantCenter -= Point(octantWidth/4, octantWidth/4, octantWidth/4);
             if( sphereCenter.x > octantCenter.x ) {
@@ -71,7 +72,7 @@ TriangleOctree::cursor::path TriangleOctree::getPathForSphere(const Point &spher
     return cs;
 }
 
-TriangleOctree::cursor::path TriangleOctree::getPathForPointList(List& l, bool addChildren) {
+TriangleOctree::cursor::path TriangleOctree::getPathForPointList(const List& l, bool addChildren) {
     cursor cs(this);
     Point octantCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
     double octantWidth = this->_M_size;

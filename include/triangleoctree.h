@@ -23,7 +23,7 @@ public:
     //@{
     cursor::path getPathForTriangle(const Triangle *t, bool addChildren = true);
     cursor::path getPathForSphere(const Point &sphereCenter, const double &sphereRadius, bool addChildren = true);
-    cursor::path getPathForPointList(List &l, bool addChildren = true );
+    cursor::path getPathForPointList(const List &l, bool addChildren = true );
     //@}
     //! Returns a list of all triangles from below the node indicated by the path.
     List* getTriangleListFromPathDown(const TriangleOctree::cursor::const_path p);
