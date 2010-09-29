@@ -149,6 +149,7 @@ Triangulation::Triangulation(const Triangle *t0, const bool keep_reference)
  {
   t = (Triangle *)todo.popHead();
   st.appendHead(t);
+  MARK_VISIT2(t);
   nt=t->t1(); if (nt != NULL && !IS_VISITED2(nt)) {MARK_VISIT2(nt); todo.appendHead(nt);}
   nt=t->t2(); if (nt != NULL && !IS_VISITED2(nt)) {MARK_VISIT2(nt); todo.appendHead(nt);}
   nt=t->t3(); if (nt != NULL && !IS_VISITED2(nt)) {MARK_VISIT2(nt); todo.appendHead(nt);}
@@ -1173,22 +1174,19 @@ List* Triangulation::getComponentsList() {
         component = new List;
         components->appendHead(component);
         todo.appendHead(t);
-        while (todo.numels()) {
-            t = (Triangle *)todo.head()->data;
-            todo.removeCell(todo.head());
+        while (t = (Triangle*) todo.popHead()) {
             if (!IS_VISITED2(t)) {
                 t1 = t->t1();
                 t2 = t->t2();
                 t3 = t->t3();
                 // append neighbor triangles to todo list
-                if (t1 != NULL && !IS_VISITED2(t1)) todo.appendHead(t1);
-                if (t2 != NULL && !IS_VISITED2(t2)) todo.appendHead(t2);
-                if (t3 != NULL && !IS_VISITED2(t3)) todo.appendHead(t3);
+                if (t1 && !IS_VISITED2(t1)) todo.appendHead(t1);
+                if (t2 && !IS_VISITED2(t2)) todo.appendHead(t2);
+                if (t3 && !IS_VISITED2(t3)) todo.appendHead(t3);
                 MARK_VISIT2(t);
                 component->appendTail(t);
             }
         }
-        todo.removeNodes();
         // get next node with unvisited triangle
         for (; n != NULL; n=n->next()) {
             t = ((Triangle *)n->data);
