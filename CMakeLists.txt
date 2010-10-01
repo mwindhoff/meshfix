@@ -3,15 +3,14 @@ project (MeshFix)
 add_subdirectory(contrib/JMeshLib)
 include_directories(
     include
+    /usr/include/superlu
     contrib/JMeshLib/include
-    contrib/OpenNL3.0.2/src/NL
-    contrib/OpenNL3.0.2/src
+    contrib/OpenNL3.2.1/src
     contrib/octree
 )
 link_directories(
     ${LINK_DIRECTORIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/contrib/JMeshLib/lib
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/OpenNL3.0.2/binaries/lib
 )
 file(GLOB meshfix_h include/*.h)
 set(meshfix_src
@@ -22,6 +21,7 @@ set(meshfix_src
     src/mwExtensions.cpp
     src/triangleoctree.cpp
     src/smoothing.cpp
+    contrib/OpenNL3.2.1/src/nl_single_file.c
 )
 add_custom_command(
     TARGET meshfix
@@ -29,5 +29,6 @@ add_custom_command(
     COMMAND make
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/contrib/JMeshLib/
 )
+ADD_DEFINITIONS(-DNL_USE_SUPERLU)
 add_executable(meshfix ${meshfix_src} ${meshfix_h} meshfix.cpp)
-target_link_libraries(meshfix jmesh nl)
+target_link_libraries(meshfix jmesh superlu blas)

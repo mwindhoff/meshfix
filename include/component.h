@@ -102,7 +102,6 @@ struct ComponentStruct {
                     w = w->nextOnBoundary();
                 } while (w != v);
                 loopList->appendHead(loop);
-                printf("loop->numels: %d\n", loop->numels());
             }
         }
         FOREACHVVVERTEX(this->vertices, v, n) {UNMARK_BIT(v,2);}

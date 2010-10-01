@@ -5,12 +5,14 @@ include/holeFilling.h
 include/jrs_predicates.h
 include/sparselsystem.h
 include/triangleoctree.h
+include/component.h
 src/detectIntersections.cpp
 src/holeFilling.cpp
 src/jrs_predicates.c
 src/mwExtensions.cpp
 src/sparseLSystem.cpp
 src/triangleoctree.cpp
+src/smoothing.cpp
 meshfix.cpp
 readme.txt
 CMakeLists.txt
@@ -58,6 +60,4 @@ contrib/JMeshLib/src/PRIMITIVES/graph.cpp
 contrib/JMeshLib/src/PRIMITIVES/dijkstraGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/clusterGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/binTree.cpp
-src/smoothing.cpp
 test/test_join_components.sh
-include/component.h

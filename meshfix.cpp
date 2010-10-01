@@ -460,7 +460,6 @@ int main(int argc, char *argv[])
   else if (!strcmp(argv[i], "-n")) {
       if (i<argc-1) {
           numberComponentsToKeep = atoi(argv[i+1]);
-          JMesh::info("Keeping the biggest %d components.\n", numberComponentsToKeep);
           if (numberComponentsToKeep < 1)
               JMesh::error("# components to keep must be >= 1.\n");
           i++;
@@ -473,7 +472,6 @@ int main(int argc, char *argv[])
           minAllowedDistance = atof(argv[i+1]);
           joinCloseOrOverlappingComponents = true;
           if (minAllowedDistance < 0) JMesh::error("minAllowedDistance must be >= 0.\n");
-          JMesh::info("Joining components closer than %f or overlapping.\n", minAllowedDistance);
           i++;
       }
   }
@@ -499,11 +497,13 @@ int main(int argc, char *argv[])
  input_filename = argv[1];
 
  // // Keep only the biggest components
-// int sc = tin.removeSmallestComponents( numberComponentsToKeep );
-// if (sc) JMesh::info("Removed %d small components\n", sc);
+ JMesh::info("Keeping the biggest %d components:\n", numberComponentsToKeep);
+ int sc = tin.removeSmallestComponents( numberComponentsToKeep );
+ if (sc) JMesh::info(" Removed %d smallest components.\n", sc);
+ else JMesh::info(" No components deleted.\n", sc);
 
  // Fill holes by taking into account both sampling density and normal field continuity
-// tin.fillSmallBoundaries(tin.E.numels(), true, true);
+ tin.fillSmallBoundaries(tin.E.numels(), true, true);
 
  if (joinCloseOrOverlappingComponents) {
      tin.joinCloseOrOverlappingComponents( minAllowedDistance );
@@ -512,7 +512,7 @@ int main(int argc, char *argv[])
  {
   printf("\nJoining input components ...\n");
   JMesh::begin_progress();
-  while (joinClosestComponents(&tin, false, true, false)) JMesh::report_progress("Num. components: %d       ",tin.shells());
+  while (joinClosestComponents(&tin, false, true, true)) JMesh::report_progress("Num. components: %d       ",tin.shells());
   JMesh::end_progress();
   tin.deselectTriangles();
  }
