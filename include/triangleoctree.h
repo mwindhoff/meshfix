@@ -17,7 +17,11 @@ public:
 
     //! Adds the triangle to the the smalles possible node in the octree that contains all vertices of the triangle.
     void addTriangle(Triangle *t);
-
+    //! Appends triangles of non leaf nodes to the children, which they intersect. Afterwards all triangles are in the leaf nodes.
+    void writeTrianglesToLeafs();
+    void writeTrianglesToLeafs(const cursor::const_path p, Point octantCenter, double octantWidth);
+    //! Tests whether the Triangle intersects with the octant.
+    bool triangleIntersectsOctant(Triangle *t, Point &octantCenter, double octantWidth);
     //! Returns the smallest possible node below the root node that contains all vertices of the given elements.
     //! addChildren determines whether to add children or to stop at leaf nodes.
     //@{

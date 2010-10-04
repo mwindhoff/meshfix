@@ -6,6 +6,131 @@ void TriangleOctree::addTriangle(Triangle *t) {
     cursor::path p = getPathForTriangle(t);
     p->valuePtr()->appendTail(t);
 }
+void TriangleOctree::writeTrianglesToLeafs() {
+    cursor cs(this);
+    Point octantCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
+    double octantWidth = this->_M_size;
+    writeTrianglesToLeafs(cs.toConstPath(), octantCenter, octantWidth);
+}
+
+void TriangleOctree::writeTrianglesToLeafs(const TriangleOctree::cursor::const_path p, Point octantCenter, double octantWidth) {
+    cursor cs(p);
+    double w2 = octantWidth/2, w4 = octantWidth/4;
+    Point c=octantCenter-Point(w4,w4,w4);
+    Triangle *t;
+    Node *n;
+    if( !cs->is_leaf_node() ) {
+        List *l = cs->valuePtr();
+        cs.down(0);
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(0);
+        c.x+=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(1);
+        c.y+=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(0);
+        c.x-=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(2);
+        c.z+=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(0);
+        c.x+=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(1);
+        c.y-=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        cs.axis_partner(0);
+        c.x-=w2;
+        FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
+            cs->valuePtr()->appendHead(t);
+        writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+    }
+}
+
+bool TriangleOctree::triangleIntersectsOctant(Triangle *t, Point &octantCenter, double octantWidth) {
+    double w2=octantWidth/2;
+    // get the corner points of the octant
+    Point p1 = octantCenter+Point(-w2,-w2,-w2), // -x -y -z
+    p2 = octantCenter+Point(w2,-w2,-w2),        // +x -y -z
+    p3 = octantCenter+Point(w2,w2,-w2),         // +x +y -z
+    p4 = octantCenter+Point(-w2,w2,-w2),        // -x +y -z
+    p5 = octantCenter+Point(-w2,-w2,w2),        // -x -y +z
+    p6 = octantCenter+Point(w2,-w2,w2),         // +x -y +z
+    p7 = octantCenter+Point(w2,w2,w2),          // +x +y +z
+    p8 = octantCenter+Point(-w2,w2,w2);         // -x +y +z
+    // test whether the triangle is not completely on the outside of any octant face plane
+    Point p11 = (*t->v1())-p1, p12 = (*t->v2())-p1, p13 = (*t->v3())-p1;
+    Point p71 = (*t->v1())-p7, p72 = (*t->v2())-p7, p73 = (*t->v3())-p7;
+    if(p11.x<0 && p12.x<0 && p13.x<0) return false;
+    if(p11.y<0 && p12.y<0 && p13.y<0) return false;
+    if(p11.z<0 && p12.z<0 && p13.z<0) return false;
+    if(p71.x>0 && p72.x>0 && p73.x>0) return false;
+    if(p71.y>0 && p72.y>0 && p73.y>0) return false;
+    if(p71.z>0 && p72.z>0 && p73.z>0) return false;
+    // intersect triangle plane with the 12 edges, return true if intersection is inside octant and inside the bounding sphere of the triangle
+    Point n = t->getNormal(), c = t->getCircleCenter(), i;
+    double x,y,z,r2 = (c-(*t->v1())).squaredLength();
+    double k = n*(*t->v1());
+    if(n.x != 0 ) { // edges in x direction
+        x = -(n.y*p1.y+n.z*p1.z-k)/n.x;
+        i.setValue(x,p1.y,p1.z);
+        if(fabs(x-octantCenter.x) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        x = -(n.y*p2.y+n.z*p2.z-k)/n.x;
+        i.setValue(x,p2.y,p2.z);
+        if(fabs(x-octantCenter.x) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        x = -(n.y*p5.y+n.z*p5.z-k)/n.x;
+        i.setValue(x,p5.y,p5.z);
+        if(fabs(x-octantCenter.x) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        x = -(n.y*p6.y+n.z*p6.z-k)/n.x;
+        i.setValue(x,p6.y,p6.z);
+        if(fabs(x-octantCenter.x) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+    }
+    if(n.y != 0 ) { // edges in y direction
+        y = -(n.x*p1.x+n.z*p1.z-k)/n.y;
+        i.setValue(y,p1.x,p1.z);
+        if(fabs(y-octantCenter.y) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        y = -(n.x*p4.x+n.z*p4.z-k)/n.y;
+        i.setValue(y,p4.x,p4.z);
+        if(fabs(y-octantCenter.y) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        y = -(n.x*p5.x+n.z*p5.z-k)/n.y;
+        i.setValue(y,p5.x,p5.z);
+        if(fabs(y-octantCenter.y) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        y = -(n.x*p8.x+n.z*p8.z-k)/n.y;
+        i.setValue(y,p8.x,p8.z);
+        if(fabs(y-octantCenter.y) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+    }
+    if(n.z != 0 ) { // edges in z direction
+        z = -(n.x*p1.x+n.y*p1.y-k)/n.z;
+        i.setValue(z,p1.x,p1.y);
+        if(fabs(z-octantCenter.z) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        z = -(n.x*p2.x+n.y*p2.y-k)/n.z;
+        i.setValue(z,p2.x,p2.y);
+        if(fabs(z-octantCenter.z) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        z = -(n.x*p3.x+n.y*p3.y-k)/n.z;
+        i.setValue(z,p3.x,p3.y);
+        if(fabs(z-octantCenter.z) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+        z = -(n.x*p4.x+n.y*p4.y-k)/n.z;
+        i.setValue(z,p4.x,p4.y);
+        if(fabs(z-octantCenter.z) < w2 && i.squaredDistance(&c) < r2 && t->isInside(&i)) return true;
+    }
+    return false;
+}
 
 TriangleOctree::cursor::path TriangleOctree::getPathForTriangle(const Triangle *t, bool addChildren) {
     cursor cs(this);
