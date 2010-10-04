@@ -13,6 +13,7 @@ void ExtTriMesh::initializeOctree() {
     FOREACHTRIANGLE(t, n) {
         ot->addTriangle(t);
     }
+//    ot->writeTrianglesToLeafs();
 }
 
 /**
@@ -197,7 +198,6 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                 two->removeUnlinkedElements();
                 two->unmarkEverything();
                 // check if both components have a boundary loop and join them
-                // TODO: factor 2 needed?
                 if( two->joinComponentsCloseBoundaries(cn.triangles, cm.triangles, 2*minAllowedDistance) ) {
                     this->append(two);
                     this->eulerUpdate();
