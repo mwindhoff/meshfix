@@ -62,8 +62,8 @@ public:
   typedef octree_cursor< T_, T_&, T_*, _self_type, _self_pointer, d_ > cursor;
   typedef octree_cursor< T_, const T_&, const T_*, _self_type, _self_pointer, d_ > const_cursor;
 
-  octree( const double* center, double size );
-  octree( const double* center, double size, const value_type& root_node_value );
+  octree( const double* center, double width );
+  octree( const double* center, double width, const value_type& root_node_value );
   virtual ~octree();
 
   /** \brief Iterator based access.
@@ -103,13 +103,13 @@ public:
     */
   //@{
   const double* center() const { return this->_M_center; }
-  double size() const { return this->_M_size; }
+  double width() const { return this->_M_width; }
   //@}
 
 protected:
   octree_node_pointer _M_root;
   double _M_center[d_];
-  double _M_size;
+  double _M_width;
 };
 
 #endif // __octree_h

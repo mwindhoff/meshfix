@@ -5,7 +5,8 @@
 //! ComponentStruct references triangles and vertices of a Triangulation
 //! and provides serveral convenience functions.
 
-struct ComponentStruct {
+class ComponentStruct {
+public:
     List *triangles;
     List *vertices;
     List *boundaries;
@@ -14,9 +15,18 @@ struct ComponentStruct {
     double inSphereRadius2;
     double outSphereRadius2;
     // component = triangles of list
-    ComponentStruct() {}
+    ComponentStruct() {
+        triangles = vertices = boundaries = hierarchyTriangles = NULL;
+    }
+    void clear() {
+        if(triangles) triangles->removeNodes();
+        if(vertices) vertices->removeNodes();
+        if(boundaries) while(List *l = (List*) boundaries->popHead()) delete(l);
+        if(hierarchyTriangles) hierarchyTriangles->removeNodes();
+    }
     ComponentStruct(List* l) {
-        this->triangles = l;
+        this->triangles = new List(l);
+        vertices = boundaries = hierarchyTriangles = NULL;
     }
     // component = triangles connected to t
     ComponentStruct(Triangle *t, unsigned b = 2) {

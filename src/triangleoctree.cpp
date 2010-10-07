@@ -1,6 +1,10 @@
 #include "triangleoctree.h"
 TriangleOctree::TriangleOctree( const double* octreeCenter, double octreeWidth ) :
         octree<List, 3, std::allocator<List> >::octree( octreeCenter, octreeWidth ) {}
+TriangleOctree::~TriangleOctree() {
+    for(iterator it = this->begin(); it != this->end(); ++it)
+        delete(it->valuePtr());
+}
 
 void TriangleOctree::addTriangle(Triangle *t) {
     cursor::path p = getPathForTriangle(t);
@@ -9,8 +13,21 @@ void TriangleOctree::addTriangle(Triangle *t) {
 void TriangleOctree::writeTrianglesToLeafs() {
     cursor cs(this);
     Point octantCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
-    double octantWidth = this->_M_size;
+    double octantWidth = this->_M_width;
     writeTrianglesToLeafs(cs.toConstPath(), octantCenter, octantWidth);
+}
+
+Point TriangleOctree::path2center(TriangleOctree::cursor::path p, const double *center, double w) {
+    Point c(center[0], center[1], center[2]);
+    for (int j = 0; j < p._M_indices.size(); j++) {
+        int i = p._M_indices[j];
+        double w4 = w/4;
+        c.x += (i & 1) ? w4 : -1*w4;
+        c.y += (i & 2) ? w4 : -1*w4;
+        c.z += (i & 4) ? w4 : -1*w4;
+        w = w/2;
+    }
+    return c;
 }
 
 void TriangleOctree::writeTrianglesToLeafs(const TriangleOctree::cursor::const_path p, Point octantCenter, double octantWidth) {
@@ -60,12 +77,21 @@ void TriangleOctree::writeTrianglesToLeafs(const TriangleOctree::cursor::const_p
         FOREACHVTTRIANGLE(l, t, n) if(triangleIntersectsOctant(t, c, w2))
             cs->valuePtr()->appendHead(t);
         writeTrianglesToLeafs(cs.toConstPath(), c, w2);
+        // remove the triangles from this node, to save space and because only leafs are of interest
+        l->removeNodes();
     }
 }
 
 bool TriangleOctree::triangleIntersectsOctant(Triangle *t, Point &octantCenter, double octantWidth) {
-    double w2=octantWidth/2;
+    // test wheter the triangle has a point inside the octant
+    Point d = (*t->v1())-octantCenter;
+    if(fabs(d.x) < octantWidth || fabs(d.y) < octantWidth || fabs(d.z) < octantWidth) return true;
+    d = (*t->v2())-octantCenter;
+    if(fabs(d.x) < octantWidth || fabs(d.y) < octantWidth || fabs(d.z) < octantWidth) return true;
+    d = (*t->v3())-octantCenter;
+    if(fabs(d.x) < octantWidth || fabs(d.y) < octantWidth || fabs(d.z) < octantWidth) return true;
     // get the corner points of the octant
+    double w2=octantWidth/2;
     Point p1 = octantCenter+Point(-w2,-w2,-w2), // -x -y -z
     p2 = octantCenter+Point(w2,-w2,-w2),        // +x -y -z
     p3 = octantCenter+Point(w2,w2,-w2),         // +x +y -z
@@ -135,7 +161,7 @@ bool TriangleOctree::triangleIntersectsOctant(Triangle *t, Point &octantCenter, 
 TriangleOctree::cursor::path TriangleOctree::getPathForTriangle(const Triangle *t, bool addChildren) {
     cursor cs(this);
     Point octantCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
-    double octantWidth = this->_M_size;
+    double octantWidth = this->_M_width;
     bool b[3];
     while(true) {
         if(cs->is_leaf_node() && !addChildren) break;
@@ -170,7 +196,7 @@ TriangleOctree::cursor::path TriangleOctree::getPathForTriangle(const Triangle *
 TriangleOctree::cursor::path TriangleOctree::getPathForSphere(const Point &sphereCenter, const double &sphereRadius, bool addChildren) {
     cursor cs(this);
     Point octantCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
-    double octantWidth = this->_M_size;
+    double octantWidth = this->_M_width;
     while(true) {
         if(cs->is_leaf_node() && !addChildren) break;
         Point d = (sphereCenter-octantCenter);
@@ -200,7 +226,7 @@ TriangleOctree::cursor::path TriangleOctree::getPathForSphere(const Point &spher
 TriangleOctree::cursor::path TriangleOctree::getPathForPointList(const List& l, bool addChildren) {
     cursor cs(this);
     Point octantCenter(this->_M_center[0], this->_M_center[1], this->_M_center[2]);
-    double octantWidth = this->_M_size;
+    double octantWidth = this->_M_width;
     Point **points = (Point**)l.toArray();
     bool b[3];
     while(cs->is_leaf_node() && !addChildren) {
@@ -235,47 +261,28 @@ TriangleOctree::cursor::path TriangleOctree::getPathForPointList(const List& l, 
     return cs;
 }
 
-List* TriangleOctree::getTriangleListFromPathDown(const TriangleOctree::cursor::const_path p) {
+void TriangleOctree::fillTriangleListFromPath(List *l, const TriangleOctree::cursor::const_path p) {
     TriangleOctree::cursor cs(p);
-    List *l = new List();
-    l->appendList(cs->valuePtr());
-    if(!cs->is_leaf_node()) {
-        cs.down(0); // 0 0 0
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(0); // 1 0 0
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(1); // 1 1 0
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(0); // 0 1 0
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(2); // 0 1 1
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(0); // 1 1 1
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(1); // 1 0 1
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-        cs.axis_partner(0); // 0 0 1
-        l->appendList(getTriangleListFromPathDown(cs.toConstPath()));
-    }
-    return l;
-}
-
-List* TriangleOctree::getTriangleListFromPathUp(const TriangleOctree::cursor::const_path p) {
-    cursor cs(p);
-    List *l = new List();
-    if(cs.level()) {
-        cs.up();
+    if(cs->is_leaf_node()) { // append triangles from leaf nodes
         l->appendList(cs->valuePtr());
-        l->appendList(getTriangleListFromPathUp(cs.toConstPath()));
+    } else {
+        cs.down(0); // 0 0 0
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(0); // 1 0 0
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(1); // 1 1 0
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(0); // 0 1 0
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(2); // 0 1 1
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(0); // 1 1 1
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(1); // 1 0 1
+        fillTriangleListFromPath(l, cs.toConstPath());
+        cs.axis_partner(0); // 0 0 1
+        fillTriangleListFromPath(l, cs.toConstPath());
     }
-    return l;
-}
-
-List* TriangleOctree::getTriangleListFromPath(const TriangleOctree::cursor::const_path p) {
-    List *l = new List();
-    l->appendList(getTriangleListFromPathUp(p));
-    l->appendList(getTriangleListFromPathDown(p));
-    return l;
 }
 
 void TriangleOctree::removeUnlinkedTriangles() {

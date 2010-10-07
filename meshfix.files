@@ -60,4 +60,5 @@ contrib/JMeshLib/src/PRIMITIVES/graph.cpp
 contrib/JMeshLib/src/PRIMITIVES/dijkstraGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/clusterGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/binTree.cpp
-test/test_join_components.sh
+test/sphere_join_test.sh
+test/close_objects_join_test.sh
