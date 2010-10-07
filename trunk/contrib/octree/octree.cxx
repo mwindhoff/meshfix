@@ -90,14 +90,14 @@
   * Because this version does not properly initialize application-specific data at the root node, it is deprecated.
   *
   * @param[in] x_center An array of coordinates specifying the center of the octree
-  * @param[in] length The length (size) of each side of the octree
+  * @param[in] width The width (size) of each side of the octree
   */
 template< typename T_, int d_, typename A_ >
-octree<T_,d_,A_>::octree( const double* x_center, double length )
+octree<T_,d_,A_>::octree( const double* x_center, double width )
 {
   for ( int i = 0; i < d_; ++ i )
     this->_M_center[i] = x_center[i];
-  this->_M_size = length;
+  this->_M_width = width;
   this->_M_root = new octree_node<T_,d_,A_>();
 }
 
@@ -112,15 +112,15 @@ octree<T_,d_,A_>::octree( const double* x_center, double length )
   * the root node's value. This is the preferred constructor.
   *
   * @param[in] x_center An array of coordinates specifying the center of the octree
-  * @param[in] length The length (size) of each side of the octree
+  * @param[in] width  The width (size) of each side of the octree
   * @param[in] value  Application-specific data to store at the root node
   */
 template< typename T_, int d_, typename A_ >
-octree<T_,d_,A_>::octree( const double* x_center, double length, const value_type& value )
+octree<T_,d_,A_>::octree( const double* x_center, double width, const value_type& value )
 {
   for ( int i = 0; i < d_; ++ i )
     this->_M_center[i] = x_center[i];
-  this->_M_size = length;
+  this->_M_width = width;
   this->_M_root = new octree_node<T_,d_,A_>( 0, value );
 }
 

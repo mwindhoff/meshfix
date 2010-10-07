@@ -13,25 +13,25 @@ void ExtTriMesh::initializeOctree() {
     FOREACHTRIANGLE(t, n) {
         ot->addTriangle(t);
     }
-//    ot->writeTrianglesToLeafs();
+    ot->writeTrianglesToLeafs();
 }
+
 
 /**
  * Joins close or overlapping components of triangles.
  * Algorithm sketch:
- * unmark all triangles
+ * assume all triangles unmarked
  * for all pairs of components (m,n):
- *  mark2 all triangles of n
- *  mark1 all triangles that are not in n and that are in the hierarchy of n
- *  mark3 all triangles of m that are marked1 and that have a point inside of n
- *  mark3 all triangles that are in the hierarchy of m, have a point inside of m and are marked2 (==part of n)
+ *  mark1 all triangles of n
+ *  mark0 all triangles that are not in n and that are in the hierarchy of n
+ *  mark2 all triangles of m that are marked0 and that have a point inside of n
+ *  mark2 all triangles that are in the hierarchy of m, have a point inside of m and are marked1 (==part of n)
  *  for all triangles on boundary of m
- *   mark3 all triangles of n within the minAllowedDistance
- *  delete marked3 triangles
- * get the list of boundary loops of m and n
- *  find the closest boundary triangle of n and connect both triangles
- *  skip about 5 triangles
- * fill holes.
+ *   mark2 all triangles of n within the minAllowedDistance
+ *  delete marked2 triangles
+ *  get the list of boundary loops of m and n
+ *   find a boundary within the minimal joining distance
+ *    find closes pair of vertices and join them with filling, refining and fairing.
  */
 int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
     JMesh::info("Joining components that overlap or are closer than %g:\n", minAllowedDistance);
@@ -41,8 +41,8 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
     unsigned i = 0, j = 0;
     // fill components list
     bool need_unlink = false, joined = false;
-    ComponentStruct cn, cm; // component structs
     do {
+        ComponentStruct *cn, *cm; // component structs
         need_unlink = false;
         List *components = getComponentsList();
         JMesh::info(" Number of components: %d\n", components->numels() );
@@ -63,158 +63,178 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
             t = (Triangle*)((List*)n->data)->head()->data;
             two = new ExtTriMesh(t);
             this->removeShell(t);
-            cn = ComponentStruct((Triangle*)two->T.head()->data);
-            cn.markBit(1); // mark1 triangles of component n
-            List pointList(two->V); // list of vertices of cn
+            cn = new ComponentStruct((Triangle*)two->T.head()->data);
+            cn->markBit(1); // mark1 triangles of component n
             t = (Triangle*)((List*)m->data)->head()->data;
             two->append(new ExtTriMesh(t));
             this->removeShell(t);
-            cm.triangles = new List();
-            FOREACHVTTRIANGLE((&two->T), t, nn) if (!IS_BIT(t,1)) cm.triangles->appendHead(t);
+            cm = new ComponentStruct();
+            cm->triangles = new List();
+            FOREACHVTTRIANGLE((&two->T), t, nn) if (!IS_BIT(t,1)) cm->triangles->appendHead(t);
             two->initializeOctree();
-            cn.initializeRadiiAndCenter();
-            cn.hierarchyTriangles = two->ot->getTriangleListFromPath(
-                    two->ot->getPathForPointList(pointList, false).toConstPath());
-            bool found = false;
+            cn->initializeRadiiAndCenter();
+            cn->vertices = cn->getVertices(2);
+            cn->hierarchyTriangles = new List();
+            two->ot->fillTriangleListFromPath(cn->hierarchyTriangles,
+                    two->ot->getPathForPointList(*cn->vertices, false).toConstPath());
+            int found_counter = 0;
             // mark0 triangles in hierarchy of n, that are not part of n
-            FOREACHVTTRIANGLE(cn.hierarchyTriangles, t, nn) {
+            FOREACHVTTRIANGLE(cn->hierarchyTriangles, t, nn) {
                 if( !IS_BIT(t,1) ) { // t not part of component n
                     MARK_BIT(t,0);
-                    found=true;
+                    found_counter++;
                 }
             }
-            int found_counter = 0;
-            if(found) { // other triangles in the hierarchy of n found, overlap possible
-                JMesh::info(" (%d,%d): Possible overlap.\n",i+1,j+1);
-                found = false;
-                // mark2 all triangles of component n, that contain a point inside m
-                FOREACHVTTRIANGLE(cm.triangles, t, nn) {
+            if(found_counter) { // other triangles in the hierarchy of n found, overlap possible
+                JMesh::info(" (%d,%d): %d triangles could overlap.\n",i+1,j+1, found_counter);
+                found_counter = 0;
+                // mark2 all triangles of component m, that contain a point inside n
+                FOREACHVTTRIANGLE(cm->triangles, t, nn) {
                     if( IS_BIT(t,0) && // t was in hierarchy of component n (and could possible overlap with it)
-                        ( two->isPointInComponent(t->v1(), 1, &cn.center, &cn.inSphereRadius2, &cn.outSphereRadius2) ||
-                          two->isPointInComponent(t->v2(), 1, &cn.center, &cn.inSphereRadius2, &cn.outSphereRadius2) ||
-                          two->isPointInComponent(t->v3(), 1, &cn.center, &cn.inSphereRadius2, &cn.outSphereRadius2) )) {
+                        ( two->isPointInComponent(t->v1(), cn) ||
+                          two->isPointInComponent(t->v2(), cn) ||
+                          two->isPointInComponent(t->v3(), cn) )) {
                         MARK_BIT(t,2);
                         need_unlink = true;
-                        found = true;
                         found_counter++;
                     }
                 }
-                if(found) { // triangles of m inside of n found, reverse overlap possible
+                if(found_counter) { // triangles of m inside of n found, reverse overlap possible
                     JMesh::info(" (%d,%d): %d overlapping triangles of component %d.\n", i+1, j+1, found_counter, j+1);
-                    pointList.removeNodes();
                     // mark3 triangles of m
-                    pointList = *cm.getVertices();
-                    cm.initializeRadiiAndCenter();
-                    cm.hierarchyTriangles = two->ot->getTriangleListFromPath(
-                            two->ot->getPathForPointList(pointList, false).toConstPath());
+                    cm->vertices = cm->getVertices(3);
+                    cm->initializeRadiiAndCenter();
+                    cm->hierarchyTriangles = new List();
+                    TriangleOctree::cursor::path p = two->ot->getPathForPointList(*cm->vertices, false);
+                    two->ot->fillTriangleListFromPath(cm->hierarchyTriangles, p.toConstPath());
                     found_counter = 0;
                     // mark2 all triangles of component n, that contain a point inside m
-                    FOREACHVTTRIANGLE(cn.hierarchyTriangles, t, nn) {
+                    FOREACHVTTRIANGLE(cm->hierarchyTriangles, t, nn) {
                         if ( IS_BIT(t,1) && // t was part of component n
                              !IS_BIT(t,2) && // don't recheck if already marked for deletion
-                             ( two->isPointInComponent((Point*)t->v1(), 3,
-                                                       &cm.center, &cm.inSphereRadius2, &cm.outSphereRadius2) ||
-                               two->isPointInComponent((Point*)t->v2(), 3,
-                                                       &cm.center, &cm.inSphereRadius2, &cm.outSphereRadius2) ||
-                               two->isPointInComponent((Point*)t->v3(), 3,
-                                                       &cm.center, &cm.inSphereRadius2, &cm.outSphereRadius2) )) {
+                             ( two->isPointInComponent(t->v1(), cm) ||
+                               two->isPointInComponent(t->v2(), cm) ||
+                               two->isPointInComponent(t->v3(), cm) )) {
                             MARK_BIT(t,2);
                             need_unlink = true;
                             found_counter++;
                         }
                     }
                     JMesh::info(" (%d,%d): %d overlapping triangles of component %d.\n", i+1, j+1, found_counter, i+1);
-                    cm.hierarchyTriangles->removeNodes();
-                    // unmark3 triangles of m again
-                    cm.unmarkBit(3);
+                    cm->hierarchyTriangles->removeNodes();
                 } else JMesh::info(" (%d,%d): No overlap.\n", i+1, j+1);
             }
-            pointList.removeNodes();
-            // unmark0 triangles in hierarchy of n again, that are not part of n
-            FOREACHVTTRIANGLE(cn.hierarchyTriangles, t, nn) UNMARK_BIT(t,0);
+            // unmark0 triangles in hierarchy of n again
+            FOREACHVTTRIANGLE(cn->hierarchyTriangles, t, nn) UNMARK_BIT(t,0);
             // mark for deletion triangles within the minAllowedDistance of any not yet deleted triangle
             double minAllowedDistance2 = minAllowedDistance*minAllowedDistance;
-            FOREACHVTTRIANGLE(cm.triangles, t, mm) {
+            FOREACHVTTRIANGLE(cm->triangles, t, mm) {
                 if(!IS_BIT(t,2)) { // if the t is not already marked for deletion
                     Point cc = t->getCircleCenter();
-                    FOREACHVTTRIANGLE(cn.triangles, t2, nn) {
-                        if ( true ) { // one of them is not yet marked for later deletion
-                            // mark3 all connected triangles (for later deletion)
-                            if ( t2->v1()->squaredDistance(&cc) <  minAllowedDistance2 ) {
-                                FOREACHVTTRIANGLE(t2->v1()->VT(), t3, nnn) MARK_BIT(t3,3);
-                                MARK_BIT(t,3);
-                                need_unlink = true;
-                            }
-                            if ( t2->v2()->squaredDistance(&cc) <  minAllowedDistance2 ) {
-                                FOREACHVTTRIANGLE(t2->v2()->VT(), t3, nnn) MARK_BIT(t3,3);
-                                MARK_BIT(t,3);
-                                need_unlink = true;
-                            }
-                            if ( t2->v3()->squaredDistance(&cc) <  minAllowedDistance2 ) {
-                                FOREACHVTTRIANGLE(t2->v3()->VT(), t3, nnn) MARK_BIT(t3,3);
-                                MARK_BIT(t,3);
-                                need_unlink = true;
-                            }
-                            // mark3 all connected triangles (for later deletion)
-                            if (IS_BIT(t,3)) {
-                                FOREACHVTTRIANGLE(t->v1()->VT(), t3, nnn) MARK_BIT(t3,4);
-                                FOREACHVTTRIANGLE(t->v2()->VT(), t3, nnn) MARK_BIT(t3,4);
-                                FOREACHVTTRIANGLE(t->v3()->VT(), t3, nnn) MARK_BIT(t3,4);
-                            }
+                    FOREACHVTTRIANGLE(cn->triangles, t2, nn) {
+                        // mark3 all connected triangles (for later deletion)
+                        if ( t2->v1()->squaredDistance(&cc) <  minAllowedDistance2 ) {
+                            List *vt = t2->v1()->VT();
+                            FOREACHVTTRIANGLE(vt, t3, nnn) MARK_BIT(t3,3);
+                            delete(vt);
+                            MARK_BIT(t,3);
+                            need_unlink = true;
+                        } else if ( t2->v2()->squaredDistance(&cc) <  minAllowedDistance2 ) {
+                            List *vt = t2->v2()->VT();
+                            FOREACHVTTRIANGLE(vt, t3, nnn) MARK_BIT(t3,3);
+                            delete(vt);
+                            MARK_BIT(t,3);
+                            need_unlink = true;
+                        } else if ( t2->v3()->squaredDistance(&cc) <  minAllowedDistance2 ) {
+                            List *vt = t2->v3()->VT();
+                            FOREACHVTTRIANGLE(vt, t3, nnn) MARK_BIT(t3,3);
+                            delete(vt);
+                            MARK_BIT(t,3);
+                            need_unlink = true;
+                        }
+                        // mark3 all connected triangles (for later deletion)
+                        if (IS_BIT(t,3)) {
+                            List *vt = t->v1()->VT();
+                            FOREACHVTTRIANGLE(vt, t3, nnn) MARK_BIT(t3,4);
+                            vt->removeNodes();
+                            vt = t->v2()->VT();
+                            FOREACHVTTRIANGLE(vt, t3, nnn) MARK_BIT(t3,4);
+                            vt->removeNodes();
+                            vt = t->v3()->VT();
+                            FOREACHVTTRIANGLE(vt, t3, nnn) MARK_BIT(t3,4);
+                            delete(vt);
                         }
                     }
                 }
             }
+            found_counter = 0;
             // mark2 all triangles for deletion which are marked3
-            FOREACHVTTRIANGLE(cn.triangles, t, nn) if(IS_BIT(t,3)) MARK_BIT(t,2);
-            FOREACHVTTRIANGLE(cm.triangles, t, nn) if(IS_BIT(t,3) || IS_BIT(t,4)) MARK_BIT(t,2);
-            cn.hierarchyTriangles->removeNodes();
+            FOREACHVTTRIANGLE(cn->triangles, t, nn) {
+                if(!IS_BIT(t,2) && IS_BIT(t,3)) {
+                    MARK_BIT(t,2);
+                    found_counter++;
+                }
+            }
+            FOREACHVTTRIANGLE(cm->triangles, t, nn) {
+                if(!IS_BIT(t,2) && (IS_BIT(t,3) || IS_BIT(t,4))) {
+                    MARK_BIT(t,2);
+                    found_counter++;
+                }
+            }
+            if( found_counter )
+                JMesh::info(" (%d,%d) %d triangles are closer than %g.\n", i+1, j+1, found_counter, minAllowedDistance);
             // delete marked2 triangles, now both components should have at least one boundary loop
             if (need_unlink) {
                 d_boundaries = d_handles = d_shells = 1;
                 int deletion_counter = 0;
                 // remove from component n
                 List *tmp = new List();
-                while( t = (Triangle*) cn.triangles->popHead() ) {
+                while( t = (Triangle*) cn->triangles->popHead() ) {
                     if (IS_BIT(t,2)) {
                         two->unlinkTriangle(t);
                         deletion_counter++;
                     } else tmp->appendTail(t);
                 }
-                cn.triangles->joinTailList(tmp);
+                cn->triangles->joinTailList(tmp);
                 JMesh::info(" Deleted %d triangles of component %d\n", deletion_counter, i+1);
                 deletion_counter = 0;
                 // remove from component m
-                while( t = (Triangle*) cm.triangles->popHead() ) {
+                while( t = (Triangle*) cm->triangles->popHead() ) {
                     if (IS_BIT(t,2)) {
                         two->unlinkTriangle(t);
                         deletion_counter++;
                     } else tmp->appendTail(t);
                 }
-                cm.triangles->joinTailList(tmp);
+                cm->triangles->joinTailList(tmp);
                 JMesh::info(" Deleted %d triangles of component %d\n", deletion_counter, j+1);
                 two->ot->removeUnlinkedTriangles();
                 two->d_boundaries = two->d_handles = two->d_shells = 1;
                 two->removeUnlinkedElements();
                 two->unmarkEverything();
                 // check if both components have a boundary loop and join them
-                if( two->joinComponentsCloseBoundaries(cn.triangles, cm.triangles, 2*minAllowedDistance) ) {
+                if( two->joinComponentsCloseBoundaries(cn->triangles, cm->triangles, 3*minAllowedDistance) ) {
                     this->append(two);
+                    delete(two);
                     this->eulerUpdate();
                     joined = true;
                     JMesh::info(" (%d,%d): Components successfully joined.\n", i+1, j+1);
                     i=0;
                     j=0;
+                    cm->clear();
+                    cn->clear();
                     break;
                 }
             }
             this->append(two);
+            delete(two);
             this->eulerUpdate();
             if( !joined ) {
                 j++;
                 break;
             }
         }
+        cm->clear();
+        cn->clear();
         // delete components list
         FOREACHNODE(*components, n) delete((List *)n->data);
     } while (j < this->n_shells); // until there were no more triangles to delete
@@ -246,36 +266,22 @@ int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double maxDist
         loop->removeNodes();
         cm.boundaries->joinTailList(tmp); // leave boundaries that had no partner
     }
+    cn.clear();
+    cm.clear();
     return ret;
 }
 
-bool ExtTriMesh::isPointInComponent(Point *p, char bit, Point *center, double *innerSphereRadius2, double *outerSphereRadius2) {
-    double dCenter = p->squaredDistance(center);
-    if( dCenter < *innerSphereRadius2 ) return true;
-    if( dCenter > *outerSphereRadius2 ) return false;
-    TriangleOctree::cursor::path n = ot->getPathForSphere(*p, 1.0, false);
-    if ( ot->findClosestPathContainingTriangleMask(n, 1<<bit) ) {
-        List *l = ot->getTriangleListFromPath(n.toConstPath());
-        double mdist = DBL_MAX;
-        bool found = false;
-        Triangle *t, *closestTriangle;
-        Node *nn;
-        FOREACHVTTRIANGLE(l, t, nn) {
-            if( (t->mask & 1<<bit) > 0 ) { // part of component
-                double dist = t->getCenter().squaredDistance(p);
-                if( dist < mdist ) {
-                    mdist = dist;
-                    closestTriangle = t;
-                    found = true;
-                }
-            }
-        }
-        l->removeNodes();
-        if(!found)
-            return false;
-        return closestTriangle->getNormal().getAngle(closestTriangle->getCenter()-p) < M_PI_2;
-    }
-    return false;
+bool ExtTriMesh::isPointInComponent(Vertex *v, ComponentStruct *c) {
+    double dCenter = v->squaredDistance(&c->center);
+    if( dCenter < c->inSphereRadius2 ) return true;
+    if( dCenter > c->outSphereRadius2 ) return false;
+//    TriangleOctree::cursor::path n = ot->getPathForSphere(*p, 1.0, false);
+    Vertex *w;
+    this->getClosestPartner(v, c->vertices, &w);
+    Point n = w->e0->t1->getNormal();
+    if (n.isNull()) return false;
+    double d = n*(*v) - n*(*w);
+    return d < 0;
 }
 
 bool ExtTriMesh::loopsHaveAllVerticesCloserThanDistance(List *loop, List *loop2, const double &distance) {

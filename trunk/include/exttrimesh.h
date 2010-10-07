@@ -31,6 +31,7 @@
 #include "jmesh.h"
 #include "binTree.h"
 #include "triangleoctree.h"
+#include "component.h"
 #include <set>
 using std::set;
 
@@ -66,7 +67,7 @@ class ExtTriMesh : public Triangulation
  //! closed surface. Triangles of the surface must be recognizable using (t->mask & 1<<bit)>0.
  //! This function needs an initialized octree.
  //! Warning: The normals must be directed outwards of each component!
- bool isPointInComponent(Point *p, char bit, Point *center, double *innerSphereRadius, double *outerSphereRadius);
+ bool isPointInComponent(Vertex *v, ComponentStruct *c);
 
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 
