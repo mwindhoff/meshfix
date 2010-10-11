@@ -85,11 +85,11 @@ void TriangleOctree::writeTrianglesToLeafs(const TriangleOctree::cursor::const_p
 bool TriangleOctree::triangleIntersectsOctant(Triangle *t, Point &octantCenter, double octantWidth) {
     // test wheter the triangle has a point inside the octant
     Point d = (*t->v1())-octantCenter;
-    if(fabs(d.x) < octantWidth || fabs(d.y) < octantWidth || fabs(d.z) < octantWidth) return true;
+    if(fabs(d.x) < octantWidth && fabs(d.y) < octantWidth && fabs(d.z) < octantWidth) return true;
     d = (*t->v2())-octantCenter;
-    if(fabs(d.x) < octantWidth || fabs(d.y) < octantWidth || fabs(d.z) < octantWidth) return true;
+    if(fabs(d.x) < octantWidth && fabs(d.y) < octantWidth && fabs(d.z) < octantWidth) return true;
     d = (*t->v3())-octantCenter;
-    if(fabs(d.x) < octantWidth || fabs(d.y) < octantWidth || fabs(d.z) < octantWidth) return true;
+    if(fabs(d.x) < octantWidth && fabs(d.y) < octantWidth && fabs(d.z) < octantWidth) return true;
     // get the corner points of the octant
     double w2=octantWidth/2;
     Point p1 = octantCenter+Point(-w2,-w2,-w2), // -x -y -z
@@ -304,16 +304,15 @@ bool TriangleOctree::isTriangleMaskInPathNode(const TriangleOctree::cursor::cons
     Node *n;
     // check triangles in the node
     FOREACHVTTRIANGLE(p->valuePtr(), t, n) {
-        if( t->mask & mask > 0 ) {
+        if( t->mask & mask )
             return true;
-        }
     }
     return false;
 }
 
 bool TriangleOctree::isTriangleMaskInPathDown(TriangleOctree::cursor::path &p, char mask) {
-    if(isTriangleMaskInPathNode(p.toConstPath(), mask)) return true;
-    if(p->is_leaf_node()) return false;
+    if(p->is_leaf_node())
+        return isTriangleMaskInPathNode(p.toConstPath(), mask);
     // check children
     cursor cs(p.toConstPath());
     cs.down(0); // 0 0 0

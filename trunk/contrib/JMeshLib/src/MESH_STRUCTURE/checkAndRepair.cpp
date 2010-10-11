@@ -410,33 +410,31 @@ i++;
 //// keep only the number_to_keep biggest ones and remove all the others. ////
 
 int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
-    Node *n,*m;
-    std::map<const unsigned, const List*> sizeListMap;
-    Triangle *t;
-    int nt = 0;
+    std::multimap<const unsigned, List*, std::greater<const unsigned> > sizeListMap;
     // fill components list
     List *components = getComponentsList();
-    FOREACHNODE(*components, n)
-        sizeListMap[((unsigned)((List *)n->data)->numels())]=(List *)n->data;
-    nt = 0;
-    std::map<const unsigned, const List*>::const_reverse_iterator rit = sizeListMap.rbegin();
-    // skip number_to_keep last elements (since they have biggest number of elements)
-    for( std::map<const unsigned, const List*>::const_reverse_iterator rit2 = sizeListMap.rbegin();
-        rit2 != sizeListMap.rend(); rit2++)
-    for( unsigned i = 0; i < number_to_keep && rit != sizeListMap.rend(); i++) rit++;
-    for(; rit != sizeListMap.rend(); rit++) {
-        FOREACHVTTRIANGLE(rit->second, t, m) {
-            t->unlinkEdgesWithVertices();
-            nt++;
+    int nt = 0, i = 0, deletion_counter = 0, nc = components->numels();
+    while(List *l = (List*) components->popHead())
+        sizeListMap.insert(std::pair<const unsigned, List*>(l->numels(), l));
+    std::map<const unsigned, List*>::iterator it = sizeListMap.begin();
+    for(; it != sizeListMap.end(); it++) {
+        List *l = it->second;
+        // skip number_to_keep first elements (since they have biggest number of elements)
+        if( i++ >= number_to_keep ) {
+            deletion_counter++;
+            while(Triangle *t = (Triangle*) l->popHead()) {
+                t->unlinkEdgesWithVertices();
+                nt++;
+            }
         }
+        l->removeNodes();
     }
-    // delete components list
-    FOREACHNODE(*components, n) delete((List *)n->data);
     // if there are components that were unlinked
     if (nt) {
         d_boundaries = d_handles = d_shells = 1;
         removeUnlinkedElements();
-        return 1;
+        JMesh::info("Removed the smallest %d of %d shells\n", deletion_counter, nc);
+        return nt;
     }
     return 0;
 }
