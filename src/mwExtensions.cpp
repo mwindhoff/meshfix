@@ -86,7 +86,7 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                 }
             }
             if(found_counter) { // other triangles in the hierarchy of n found, overlap possible
-                JMesh::info(" (%d,%d): %d triangles could overlap.\n",i+1,j+1, found_counter);
+                JMesh::info(" (%d,%d): Some triangles could possibly overlap.\n",i+1,j+1, found_counter);
                 found_counter = 0;
                 // mark2 all triangles of component m, that contain a point inside n
                 FOREACHVTTRIANGLE(cm->triangles, t, nn) {
@@ -212,7 +212,7 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
                 two->removeUnlinkedElements();
                 two->unmarkEverything();
                 // check if both components have a boundary loop and join them
-                if( two->joinComponentsCloseBoundaries(cn->triangles, cm->triangles, 3*minAllowedDistance) ) {
+                if( two->joinComponentsCloseBoundaries(cn->triangles, cm->triangles, 2*minAllowedDistance) ) {
                     this->append(two);
                     delete(two);
                     this->eulerUpdate();
@@ -242,29 +242,41 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
     return 0;
 }
 
-int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double maxDistanceToJoin) {
+int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double joinDistance) {
     ComponentStruct cn(nl), cm(ml);
     cn.initializeBoundaries();
     cm.initializeBoundaries();
-    List *loop, *loop2;
+    List *loop1, *loop2;
     bool ret = false;
-    while ( loop = (List*) cn.boundaries->popHead() ) {
-        List *tmp = new List();
+    List *tmp1 = new List();
+    // first join all boundaries that are closer than the joinDistance
+    while ( loop1 = (List*) cn.boundaries->popHead() ) {
+        List *tmp2 = new List();
         Vertex *bv, *bw;
         while (loop2 = (List*) cm.boundaries->popHead()) {
-            if(loopsHaveAllVerticesCloserThanDistance(loop, loop2, maxDistanceToJoin)) {
-                if( closestPair(loop, loop2, &bv, &bw) ) {
-                    if(joinBoundaryLoops(bv, bw, false, true, true)) {
-                        ret++;
-                        break;
-                    }
-                }
+            if(loopsHaveAllVerticesCloserThanDistance(loop1, loop2, joinDistance)
+                && closestPair(loop1, loop2, &bv, &bw)
+                && joinBoundaryLoops(bv, bw, false, true, true)) {
+                ret++;
                 loop2->removeNodes();
                 break;
-            } else tmp->appendHead(loop2); // retry this boundary later
+            } else tmp2->appendHead(loop2); // retry this boundary later
         }
-        loop->removeNodes();
-        cm.boundaries->joinTailList(tmp); // leave boundaries that had no partner
+        tmp1->appendHead(loop1);
+        cm.boundaries->joinTailList(tmp2); // leave boundaries that had no partner
+    }
+    // now join all other boundaries
+    while ( loop1 = (List*) tmp1->popHead() ) {
+        Vertex *bv, *bw;
+        while (loop2 = (List*) cm.boundaries->popHead()) {
+            if( closestPair(loop1, loop2, &bv, &bw)
+                && joinBoundaryLoops(bv, bw, false, true, true)) {
+                ret++;
+                loop2->removeNodes();
+                break;
+            }
+        }
+        loop1->removeNodes();
     }
     cn.clear();
     cm.clear();
@@ -275,7 +287,6 @@ bool ExtTriMesh::isPointInComponent(Vertex *v, ComponentStruct *c) {
     double dCenter = v->squaredDistance(&c->center);
     if( dCenter < c->inSphereRadius2 ) return true;
     if( dCenter > c->outSphereRadius2 ) return false;
-//    TriangleOctree::cursor::path n = ot->getPathForSphere(*p, 1.0, false);
     Vertex *w;
     this->getClosestPartner(v, c->vertices, &w);
     Point n = w->e0->t1->getNormal();

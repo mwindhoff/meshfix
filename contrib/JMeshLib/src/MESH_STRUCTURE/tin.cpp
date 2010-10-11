@@ -1167,33 +1167,27 @@ List* Triangulation::getComponentsList() {
     Node *n;
     // unmark all triangles
     FOREACHTRIANGLE(t, n) if(t != NULL) UNMARK_VISIT2(t);
-    n = T.head();
-    t = ((Triangle *)n->data);
     // fill components list
-    do {
-        component = new List;
-        components->appendHead(component);
-        todo.appendHead(t);
-        while (t = (Triangle*) todo.popHead()) {
-            if (!IS_VISITED2(t)) {
-                t1 = t->t1();
-                t2 = t->t2();
-                t3 = t->t3();
-                // append neighbor triangles to todo list
-                if (t1 && !IS_VISITED2(t1)) todo.appendHead(t1);
-                if (t2 && !IS_VISITED2(t2)) todo.appendHead(t2);
-                if (t3 && !IS_VISITED2(t3)) todo.appendHead(t3);
-                MARK_VISIT2(t);
-                component->appendTail(t);
+    FOREACHTRIANGLE(t, n) {
+        if(!IS_VISITED2(t)) {
+            component = new List;
+            components->appendHead(component);
+            todo.appendHead(t);
+            while (t = (Triangle*) todo.popHead()) {
+                if (!IS_VISITED2(t)) {
+                    t1 = t->t1();
+                    t2 = t->t2();
+                    t3 = t->t3();
+                    // append neighbor triangles to todo list
+                    if (t1 && !IS_VISITED2(t1)) todo.appendHead(t1);
+                    if (t2 && !IS_VISITED2(t2)) todo.appendHead(t2);
+                    if (t3 && !IS_VISITED2(t3)) todo.appendHead(t3);
+                    MARK_VISIT2(t);
+                    component->appendTail(t);
+                }
             }
         }
-        // get next node with unvisited triangle
-        for (; n != NULL; n=n->next()) {
-            t = ((Triangle *)n->data);
-            if (!IS_VISITED2(t))
-                break;
-        }
-    } while (n != NULL);
+    }
     // unmark all triangles
     FOREACHTRIANGLE(t, n) UNMARK_VISIT2(t);
     return components;

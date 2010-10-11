@@ -64,8 +64,7 @@ class ExtTriMesh : public Triangulation
  //! Determines the closes partner of a vertex in a list of vertices
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
  //! Returns true, if the Point p is inside the component. The component must be a
- //! closed surface. Triangles of the surface must be recognizable using (t->mask & 1<<bit)>0.
- //! This function needs an initialized octree.
+ //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
  //! Warning: The normals must be directed outwards of each component!
  bool isPointInComponent(Vertex *v, ComponentStruct *c);
 

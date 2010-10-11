@@ -47,7 +47,6 @@ bool isDegenerateTriangle(Triangle *t)
  return true;
 }
 
-
 Edge *getLongestEdge(Triangle *t)
 {
  double l1 = t->e1->squaredLength();
@@ -57,7 +56,6 @@ Edge *getLongestEdge(Triangle *t)
  if (l2>=l1 && l2>=l3) return t->e2;
  return t->e3;
 }
-
 
 // Iterate on all the selected triangles as long as possible.
 // Keep the selection only on the degeneracies that could not be removed.
@@ -124,7 +122,7 @@ int swap_and_collapse(ExtTriMesh *tin)
 
 // returns true on success
 
-bool removeDegenerateTriangles(ExtTriMesh& tin, int max_iters)
+bool removeDegenerateTriangles(ExtTriMesh& tin, int max_iters, int num_to_keep = 1)
 {
  int n, iter_count = 0;
 
@@ -133,7 +131,7 @@ bool removeDegenerateTriangles(ExtTriMesh& tin, int max_iters)
  {
   for (n=1; n<iter_count; n++) tin.growSelection();
   tin.removeSelectedTriangles();
-  tin.removeSmallestComponents();
+  tin.removeSmallestComponents(num_to_keep);
   JMesh::quiet = true; tin.fillSmallBoundaries(tin.E.numels()); JMesh::quiet = false;
   asciiAlign(tin);
  }
@@ -141,14 +139,6 @@ bool removeDegenerateTriangles(ExtTriMesh& tin, int max_iters)
  if (iter_count > max_iters) return false;
  return true;
 }
-
-
-
-
-
-
-
-
 
 bool appendCubeToList(Triangle *t0, List& l)
 {
@@ -234,6 +224,72 @@ bool removeSelfIntersections(ExtTriMesh& tin, int max_iters, int number_componen
  return true;
 }
 
+bool removeSelfIntersections2(ExtTriMesh& tin, int max_iterations, int number_components_to_keep = 1)
+{
+    int iteration_counter = 0, smooth_counter = 0, grow_counter = 0;
+    printf("Removing self-intersections (using advanced method)...\n");
+    int nintersecting = 0, nintersecting_new = 0;
+    tin.deselectTriangles();
+    tin.invertSelection();
+    JMesh::info("Stage: Remove and Fill\n");
+    while (grow_counter < max_iterations)
+    {
+        iteration_counter++;
+        asciiAlign(tin);
+        if((nintersecting_new = tin.selectIntersectingTriangles()) > 0) {
+            // remove intersecting triangles
+            tin.removeSelectedTriangles();
+            // remove smallest shells
+            tin.removeSmallestComponents(number_components_to_keep);
+            // fill, refine, fair, keep new triangles selected
+            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true, true); JMesh::quiet=false;
+            // grow selection, recheck selection for intersections
+            tin.growSelection();
+            if (nintersecting != nintersecting_new) {
+                // the last iteration resulted in different holes as before
+                nintersecting = nintersecting_new;
+                continue;
+            }
+        } else {
+            tin.deselectTriangles();
+            if(!tin.selectIntersectingTriangles())
+                break; // we have reached the end
+            continue;
+        }
+        JMesh::info("Stage: Laplacian Smooth\n");
+        // next step is smoothing
+        tin.deselectTriangles();
+        tin.removeSmallestComponents(number_components_to_keep);
+        if(!tin.selectIntersectingTriangles()) continue;
+        if(smooth_counter++ < 3) {
+            JMesh::info("Laplacian smoothing of selected triangles.\n");
+            // increase region to smooth
+            for( int i = 0; i < smooth_counter; i++) tin.growSelection();
+            // smooth with 1 step, keep selection
+            JMesh::quiet=true; tin.laplacianSmooth(1, 0.5); JMesh::quiet=false;
+            tin.growSelection();
+            nintersecting = 0;
+            JMesh::info("Stage: Remove and Fill\n");
+            continue;
+        }
+        JMesh::info("Stage: Grow selection, Remove and Fill\n");
+        smooth_counter = 0;
+        tin.deselectTriangles();
+        tin.removeSmallestComponents(number_components_to_keep);
+        if(tin.selectIntersectingTriangles()) {
+            for (int i=0; i < grow_counter+1; i++)
+                tin.growSelection();
+            tin.removeSelectedTriangles();
+            tin.removeSmallestComponents(number_components_to_keep);
+            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true, true); JMesh::quiet=false;
+            grow_counter++;
+            JMesh::info("Stage: Remove and Fill\n");
+        }
+    }
+    if (grow_counter >= max_iterations) return false;
+    return true;
+}
+
 
 bool isDegeneracyFree(ExtTriMesh& tin)
 {
@@ -263,7 +319,7 @@ bool meshclean(ExtTriMesh& tin, int max_iters = 10, int inner_loops = 3, int num
   printf("********* ITERATION %d *********\n",n);
   nd=removeDegenerateTriangles(tin, inner_loops);
   tin.deselectTriangles(); tin.invertSelection();
-  ni=removeSelfIntersections(tin, inner_loops, number_components_to_keep);
+  ni=removeSelfIntersections2(tin, inner_loops, number_components_to_keep);
   if (ni && nd && isDegeneracyFree(tin)) return true;
  }
 
@@ -496,11 +552,8 @@ int main(int argc, char *argv[])
      JMesh::info("Joining the two meshfiles %s %s.\n", argv[1], argv[2]);
  input_filename = argv[1];
 
- // // Keep only the biggest components
- JMesh::info("Keeping the biggest %d components:\n", numberComponentsToKeep);
- int sc = tin.removeSmallestComponents( numberComponentsToKeep );
- if (sc) JMesh::info(" Removed %d smallest components.\n", sc);
- else JMesh::info(" No components deleted.\n", sc);
+ // Keep only the biggest components
+ tin.removeSmallestComponents( numberComponentsToKeep );
 
  // Fill holes by taking into account both sampling density and normal field continuity
  tin.fillSmallBoundaries(tin.E.numels(), true, true);
