@@ -48,7 +48,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ## If this is not your case try to comment out the following line.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
     if(CMAKE_CXX_SIZEOF_DATA_PTR EQUAL 8)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS64BITPLATFORM")  ## needed for 64 bit 
+        ADD_DEFINITIONS(-DIS64BITPLATFORM)  ## needed for 64 bit
     endif()
 endif()
 

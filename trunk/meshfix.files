@@ -2,13 +2,11 @@ gpl.txt
 include/detectIntersections.h
 include/exttrimesh.h
 include/holeFilling.h
-include/jrs_predicates.h
 include/sparselsystem.h
 include/triangleoctree.h
 include/component.h
 src/detectIntersections.cpp
 src/holeFilling.cpp
-src/jrs_predicates.c
 src/mwExtensions.cpp
 src/sparseLSystem.cpp
 src/triangleoctree.cpp
@@ -16,6 +14,8 @@ src/smoothing.cpp
 meshfix.cpp
 readme.txt
 CMakeLists.txt
+contrib/jrs_predicates/jrs_predicates.h
+contrib/jrs_predicates/jrs_predicates.c
 contrib/octree/octree
 contrib/octree/octree_cursor.cxx
 contrib/octree/octree_cursor.h
@@ -62,3 +62,8 @@ contrib/JMeshLib/src/PRIMITIVES/clusterGraph.cpp
 contrib/JMeshLib/src/PRIMITIVES/binTree.cpp
 test/sphere_join_test.sh
 test/close_objects_join_test.sh
+include/simplification.h
+include/epsilonSampling.h
+src/simplification.cpp
+src/uniform.cpp
+src/epsilonSampling.cpp
