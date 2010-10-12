@@ -85,5 +85,5 @@ INFO- No intersecting triangles detected (in selection).
 INFO- No intersecting triangles detected.
 Saving output mesh to 'lh_fixed.off'
 }}}
-= Differences produced by the self intersection removal =
+= Differences produced by the self intersection removal (mesh of one hemisphere of a human brain) =
 http://dl.dropbox.com/u/2465545/altered_triangles.jpg
