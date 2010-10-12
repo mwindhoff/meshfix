@@ -125,9 +125,9 @@ void JMesh::info(const char *msg, ...)
 
 ///////// Reports progress status for a process //////////
 
-void JMesh::begin_progress()
+void JMesh::begin_progress(bool newline)
 {
- if (quiet) return;
+ if (quiet || !newline) return;
  if (display_message != NULL) 
   display_message("\n", DISPMSG_ACTION_PUTNEWLINE);
  else
@@ -173,10 +173,10 @@ void JMesh::report_progress(const char *msg, ...)
  }
 }
 
-void JMesh::end_progress()
+void JMesh::end_progress(bool newline)
 {
- if (quiet) return;
- if (display_message != NULL) 
+ if (quiet || !newline) return;
+ if (display_message != NULL)
   display_message("\n", DISPMSG_ACTION_PUTNEWLINE);
  else
   printf("\n");

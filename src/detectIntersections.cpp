@@ -315,7 +315,8 @@ int ExtTriMesh::selectIntersectingTriangles(UINT16 tris_per_cell)
   (((di_cell *)n->data)->di_selectIntersections());
   JMesh::report_progress("%d %% done   ",((i++)*100)/cells.numels());
  }
- JMesh::end_progress();
+ JMesh::report_progress("");
+ JMesh::end_progress(false);
 
  // Dispose memory allocated for cells
  while (cells.numels()) delete((di_cell *)cells.popHead());
@@ -324,8 +325,8 @@ int ExtTriMesh::selectIntersectingTriangles(UINT16 tris_per_cell)
  int its=0;
  FOREACHVTTRIANGLE(selT, t, n) {delete(DI_STORED_PNORMAL(t)); t->info = NULL; if (IS_VISITED(t)) its++;}
 
- if (its) JMesh::info("%d intersecting triangles have been selected.\n",its);
- else JMesh::info("No intersections detected.\n");
+ if (its) JMesh::info("%d intersecting triangles have been selected%s.\n",its, isSelection?" (in selection)":"");
+ else JMesh::info("No intersecting triangles detected%s.\n", isSelection?" (in selection)":"");
 
  FOREACHVVVERTEX(selV, v, n) UNMARK_VISIT(v);
  if (isSelection) {delete(selT); delete(selV);}

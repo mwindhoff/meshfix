@@ -74,7 +74,7 @@ class ExtTriMesh : public Triangulation
  void modbutSubdivision();
  void sqrt3Subdivision();
  int laplacianSmooth(int =1, double =1.0);
- int uniformRemesh(int, int =0);
+ int uniformRemesh(int num_steps, int num_vertices = 0, int max_swaps = 10);
  int spherize(int);
  int featureRecover(double, double);
  int simplify(int, int =0, int =0, int =0);

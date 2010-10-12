@@ -410,6 +410,7 @@ i++;
 //// keep only the number_to_keep biggest ones and remove all the others. ////
 
 int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
+    JMesh::begin_progress();
     std::multimap<const unsigned, List*, std::greater<const unsigned> > sizeListMap;
     // fill components list
     List *components = getComponentsList();
@@ -418,6 +419,7 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
         sizeListMap.insert(std::pair<const unsigned, List*>(l->numels(), l));
     std::map<const unsigned, List*>::iterator it = sizeListMap.begin();
     for(; it != sizeListMap.end(); it++) {
+        JMesh::report_progress("%d%%", (i*100)/nc);
         List *l = it->second;
         // skip number_to_keep first elements (since they have biggest number of elements)
         if( i++ >= number_to_keep ) {
@@ -429,6 +431,8 @@ int Triangulation::removeSmallestComponents( unsigned number_to_keep ) {
         }
         l->removeNodes();
     }
+    JMesh::report_progress("");
+    JMesh::end_progress(false);
     // if there are components that were unlinked
     if (nt) {
         d_boundaries = d_handles = d_shells = 1;

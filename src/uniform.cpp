@@ -69,7 +69,7 @@ Point unrm_tangentRepel(Vertex *v, double len)
  return tp;
 }
 
-int ExtTriMesh::uniformRemesh(int ns, int numver)
+int ExtTriMesh::uniformRemesh(int ns, int numver, int max_swaps)
 {
  Node *n;
  Vertex *v;
@@ -102,7 +102,7 @@ int ExtTriMesh::uniformRemesh(int ns, int numver)
   i=0; FOREACHVERTEX(v, n) {v->x=xyz[i++]; v->y=xyz[i++]; v->z=xyz[i++];}
 
   swaps=totits=1;
-  while (swaps && totits++ < 10)
+  while (swaps && totits++ < max_swaps)
   {
    swaps = 0; FOREACHEDGE(e, n) if (!IS_SHARPEDGE(e))
    {
@@ -111,7 +111,7 @@ int ExtTriMesh::uniformRemesh(int ns, int numver)
      {if (e->length() >= l*0.999999) e->swap(1); else swaps++;}
    }
   }
-  if (totits >= 10) JMesh::warning("Can't optimize!\n");
+  if (totits >= max_swaps) JMesh::warning("Can't optimize!\n");
   JMesh::report_progress("%d %% done   ",((ins-ns)*100)/ins);
  }
  JMesh::end_progress();

@@ -60,9 +60,9 @@ class JMesh
  static void info(const char *, ...);
  static void warning(const char *, ...);
  static void error(const char *, ...);
- static void begin_progress();
+ static void begin_progress(bool newline = false);
  static void report_progress(const char *, ...);
- static void end_progress();
+ static void end_progress(bool newline = true);
 };
 
 #define DISPMSG_ACTION_SETWIDGET	1
