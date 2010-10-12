@@ -1,0 +1,109 @@
+= sample output =
+{{{
+$ meshfix lh.stl -a 0.9 -u -n 1
+Fixing asin tolerance to 1.570861e-02
+\
+INFO- Loaded 812004 vertices and 270668 faces.
+0% done 
+********* ITERATION 0 *********
+Removing degeneracies...
+INFO- Removed the smallest 3 of 4 shells
+INFO- Removed the smallest 47 of 48 shells
+INFO- Removed the smallest 1 of 2 shells
+Removing self-intersections (using advanced method)...
+INFO- Stage: Remove and Fill (1)
+INFO- 7798 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 648 of 649 shells
+INFO- 4515 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 40 of 41 shells
+INFO- 1889 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 26 of 27 shells
+INFO- 1230 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 1 of 2 shells
+INFO- 1093 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 4 of 5 shells
+INFO- 954 intersecting triangles have been selected (in selection).
+INFO- 929 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 1 of 2 shells
+INFO- 923 intersecting triangles have been selected (in selection).
+INFO- 906 intersecting triangles have been selected (in selection).
+INFO- 909 intersecting triangles have been selected (in selection).
+INFO- 909 intersecting triangles have been selected (in selection).
+INFO- Stage: Laplacian Smooth (1)
+INFO- 944 intersecting triangles have been selected.
+INFO- Laplacian smoothing of selected triangles.
+INFO- Stage: Remove and Fill (11)
+INFO- 671 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 54 of 55 shells
+INFO- 680 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 11 of 12 shells
+INFO- 96 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 6 of 7 shells
+INFO- 77 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 1 of 2 shells
+INFO- 48 intersecting triangles have been selected (in selection).
+INFO- 47 intersecting triangles have been selected (in selection).
+INFO- 38 intersecting triangles have been selected (in selection).
+INFO- 38 intersecting triangles have been selected (in selection).
+INFO- Stage: Laplacian Smooth (2)
+INFO- 72 intersecting triangles have been selected.
+INFO- Laplacian smoothing of selected triangles.
+INFO- Stage: Remove and Fill (19)
+INFO- 77 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 10 of 11 shells
+INFO- 39 intersecting triangles have been selected (in selection).
+INFO- 10 intersecting triangles have been selected (in selection).
+INFO- 10 intersecting triangles have been selected (in selection).
+INFO- Stage: Laplacian Smooth (3)
+INFO- 10 intersecting triangles have been selected.
+INFO- Laplacian smoothing of selected triangles.
+INFO- Stage: Remove and Fill (23)
+INFO- 7 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 1 of 2 shells
+INFO- 8 intersecting triangles have been selected (in selection).
+INFO- No intersecting triangles detected (in selection).
+INFO- No intersecting triangles detected.
+********* ITERATION 1 *********
+Removing degeneracies...
+INFO- Removed the smallest 12 of 13 shells
+INFO- Removed the smallest 1 of 2 shells
+Removing self-intersections (using advanced method)...
+INFO- Stage: Remove and Fill (1)
+INFO- 165 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 17 of 18 shells
+INFO- 85 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 1 of 2 shells
+INFO- 19 intersecting triangles have been selected (in selection).
+INFO- 19 intersecting triangles have been selected (in selection).
+INFO- Stage: Laplacian Smooth (1)
+INFO- 19 intersecting triangles have been selected.
+INFO- Laplacian smoothing of selected triangles.
+INFO- Stage: Remove and Fill (4)
+INFO- 29 intersecting triangles have been selected (in selection).
+INFO- Removed the smallest 3 of 4 shells
+INFO- 15 intersecting triangles have been selected (in selection).
+INFO- No intersecting triangles detected (in selection).
+INFO- No intersecting triangles detected.
+********* ITERATION 2 *********
+Removing degeneracies...
+INFO- Removed the smallest 1 of 2 shells
+Removing self-intersections (using advanced method)...
+INFO- Stage: Remove and Fill (1)
+INFO- 14 intersecting triangles have been selected (in selection).
+INFO- 30 intersecting triangles have been selected (in selection).
+INFO- 4 intersecting triangles have been selected (in selection).
+INFO- 4 intersecting triangles have been selected (in selection).
+INFO- Stage: Laplacian Smooth (1)
+INFO- 4 intersecting triangles have been selected.
+INFO- Laplacian smoothing of selected triangles.
+INFO- Stage: Remove and Fill (4)
+INFO- No intersecting triangles detected (in selection).
+INFO- No intersecting triangles detected.
+********* ITERATION 3 *********
+Removing degeneracies...
+Removing self-intersections (using advanced method)...
+INFO- Stage: Remove and Fill (1)
+INFO- No intersecting triangles detected (in selection).
+INFO- No intersecting triangles detected.
+Saving output mesh to 'lh_fixed.off'
+}}}
