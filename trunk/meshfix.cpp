@@ -226,26 +226,27 @@ bool removeSelfIntersections(ExtTriMesh& tin, int max_iters, int number_componen
 
 bool removeSelfIntersections2(ExtTriMesh& tin, int max_iterations, int number_components_to_keep = 1)
 {
-    int iteration_counter = 0, smooth_counter = 0, grow_counter = 0;
+    int iteration_counter = 0, remove_and_fill_counter = 0, smooth_counter = 0, grow_counter = 0;
     printf("Removing self-intersections (using advanced method)...\n");
     int nintersecting = 0, nintersecting_new = 0;
     tin.deselectTriangles();
     tin.invertSelection();
-    JMesh::info("Stage: Remove and Fill\n");
-    while (grow_counter < max_iterations)
+    JMesh::info("Stage: Remove and Fill (1)\n");
+    while (true)
     {
         iteration_counter++;
         asciiAlign(tin);
-        if((nintersecting_new = tin.selectIntersectingTriangles()) > 0) {
+        if((nintersecting_new = tin.selectIntersectingTriangles(10)) > 0) {
+            remove_and_fill_counter++;
             // remove intersecting triangles
             tin.removeSelectedTriangles();
             // remove smallest shells
             tin.removeSmallestComponents(number_components_to_keep);
             // fill, refine, fair, keep new triangles selected
-            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true, true); JMesh::quiet=false;
+            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true); JMesh::quiet=false;
             // grow selection, recheck selection for intersections
             tin.growSelection();
-            if (nintersecting != nintersecting_new) {
+            if (nintersecting != nintersecting_new && remove_and_fill_counter < max_iterations*2) {
                 // the last iteration resulted in different holes as before
                 nintersecting = nintersecting_new;
                 continue;
@@ -253,27 +254,28 @@ bool removeSelfIntersections2(ExtTriMesh& tin, int max_iterations, int number_co
         } else {
             tin.deselectTriangles();
             if(!tin.selectIntersectingTriangles())
-                break; // we have reached the end
+                return true; // we have reached the end
             continue;
         }
-        JMesh::info("Stage: Laplacian Smooth\n");
+        remove_and_fill_counter = 0;
+        JMesh::info("Stage: Laplacian Smooth (%d)\n", smooth_counter+1);
         // next step is smoothing
         tin.deselectTriangles();
         tin.removeSmallestComponents(number_components_to_keep);
         if(!tin.selectIntersectingTriangles()) continue;
-        if(smooth_counter++ < 3) {
+        if(smooth_counter++ < max_iterations) {
             JMesh::info("Laplacian smoothing of selected triangles.\n");
             // increase region to smooth
             for( int i = 0; i < smooth_counter; i++) tin.growSelection();
             // smooth with 1 step, keep selection
-            JMesh::quiet=true; tin.laplacianSmooth(1, 0.5); JMesh::quiet=false;
+            JMesh::quiet=true; tin.laplacianSmooth(); JMesh::quiet=false;
             tin.growSelection();
             nintersecting = 0;
-            JMesh::info("Stage: Remove and Fill\n");
+            JMesh::info("Stage: Remove and Fill (%d)\n", iteration_counter+1);
             continue;
         }
-        JMesh::info("Stage: Grow selection, Remove and Fill\n");
         smooth_counter = 0;
+        JMesh::info("Stage: Grow selection, Remove and Fill (%d)\n", grow_counter+1);
         tin.deselectTriangles();
         tin.removeSmallestComponents(number_components_to_keep);
         if(tin.selectIntersectingTriangles()) {
@@ -281,13 +283,12 @@ bool removeSelfIntersections2(ExtTriMesh& tin, int max_iterations, int number_co
                 tin.growSelection();
             tin.removeSelectedTriangles();
             tin.removeSmallestComponents(number_components_to_keep);
-            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true, true); JMesh::quiet=false;
-            grow_counter++;
-            JMesh::info("Stage: Remove and Fill\n");
+            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true); JMesh::quiet=false;
+            if (++grow_counter >= max_iterations) break;
+            JMesh::info("Stage: Remove and Fill (%d)\n", iteration_counter+1);
         }
     }
-    if (grow_counter >= max_iterations) return false;
-    return true;
+    return false;
 }
 
 
@@ -442,7 +443,7 @@ void usage()
  printf(" -n <n>              Only the <n> biggest input components are kept.\n");
  printf(" -j <d>              Join components closer than <d> or overlapping.\n");
  printf(" -jc                 Join the closest pair of components.\n");
-// printf("  With '-u', uniform remeshing of the whole mesh.\n");
+ printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
  printf(" --no-clean          Don't clean.\n");
  printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
  printf(" -s                  Result is saved in STL     format instead of OFF.\n");
@@ -493,7 +494,7 @@ int main(int argc, char *argv[])
  bool joinCloseOrOverlappingComponents = false;
  float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
- bool uniformRemesh = false;
+ int uniformRemeshSteps = 0;
  bool clean = true;
  bool save_vrml = false;
  bool save_stl = false;
@@ -511,6 +512,7 @@ int main(int argc, char *argv[])
    {
 	JMesh::acos_tolerance = asin((M_PI*epsilon_angle)/180.0);
 	printf("Fixing asin tolerance to %e\n",JMesh::acos_tolerance);
+    i++;
    }
   }
   else if (!strcmp(argv[i], "-n")) {
@@ -518,7 +520,8 @@ int main(int argc, char *argv[])
           numberComponentsToKeep = atoi(argv[i+1]);
           if (numberComponentsToKeep < 1)
               JMesh::error("# components to keep must be >= 1.\n");
-          i++;
+          else
+              i++;
       }
   }
   else if (!strcmp(argv[i], "-w")) save_vrml = true;
@@ -527,22 +530,27 @@ int main(int argc, char *argv[])
       if (i<argc-1) {
           minAllowedDistance = atof(argv[i+1]);
           joinCloseOrOverlappingComponents = true;
-          if (minAllowedDistance < 0) JMesh::error("minAllowedDistance must be >= 0.\n");
-          i++;
+          if (minAllowedDistance < 0)
+              JMesh::error("minAllowedDistance must be >= 0.\n");
+          else
+              i++;
       }
   }
-  else if (!strcmp(argv[i], "-u")) uniformRemesh = true;
+  else if (!strcmp(argv[i], "-u")) {
+      if (i>=argc-1 || (uniformRemeshSteps = atoi(argv[i+1]))<1)
+          JMesh::error("# uniform remesh steps must be >= 1.\n");
+      i++;
+  }
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
   else if (!strcmp(argv[i], "-o")) {
       if (i<argc-1) {
           haveOutputFile = true;
           outputFile = argv[i+1];
+          i++;
       }
-      i++;
   }
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
-  if (par) i++;
  }
 
  // The loader performs the conversion to a set of oriented manifolds
@@ -570,8 +578,9 @@ int main(int argc, char *argv[])
   tin.deselectTriangles();
  }
 
- if (uniformRemesh) {
-//     tin.uniformRemesh(); // not yet available, since absent in sources
+ if (uniformRemeshSteps) {
+     printf("Uniform remeshing ...\n");
+     tin.uniformRemesh(uniformRemeshSteps, 0, tin.E.numels());
  }
 
  // Run geometry correction
