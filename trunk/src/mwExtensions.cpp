@@ -242,6 +242,51 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
     return 0;
 }
 
+/* Assumes that the Triangulation consists of exactly 2 components, each having no selfintersections.
+   If they overlap, they will bei joined and the overlapping parts will be deleted. */
+int ExtTriMesh::joinOverlappingComponentPair() {
+    this->deselectTriangles();
+    List *components = this->getComponentsList();
+    if( components->numels() > 2 ) JMesh::error("Triangulation consists of more than 2 components.");
+    if( components->numels() < 2 ) { JMesh::info("Only 1 component, nothing joined."); return 0; }
+    // select the intersecting triangles, which form the boundaries
+    if(!this->selectIntersectingTriangles()) {
+        JMesh::info("Component pair doesn't overlap. Nothing joined.");
+        return 0;
+    }
+    // Identify the two most distant triangles (which are assumed to be not part of the overlap),
+    // to determine which chunks to keep after removing the intersecting triangles
+    ComponentStruct c1((List*) components->popHead()), c2((List*) components->popHead());
+    Triangle *t1, *t2;
+    Node *n;
+    FOREACHVTTRIANGLE(c1.triangles, t1, n) if(IS_VISITED(t1)) break;
+    FOREACHVTTRIANGLE(c2.triangles, t2, n) if(IS_VISITED(t2)) break;
+    c1.vertices = c1.getVertices(2);
+    c2.vertices = c2.getVertices(2);
+    Vertex *v1, *v2;
+    this->mostDistantPartner(t1->v1(), c2.vertices, &v2);
+    this->mostDistantPartner(t2->v1(), c1.vertices, &v1);
+    c1.clear();
+    c2.clear();
+    t1 = v1->e0->t1;
+    t2 = v2->e0->t1;
+    // now delete the boundaries and have at least 2 shells with boundaries
+    this->removeSelectedTriangles();
+    if(!t1 || !t2) JMesh::error("Algorithm using most distant points didn't work ...");
+    this->selectConnectedComponent(t1, false);
+    this->selectConnectedComponent(t2, false);
+    this->invertSelection();
+    this->removeSelectedTriangles();
+    // remove more triangles close to the overlap, to make the holes bigger for better joining
+    this->selectBoundaryTriangles();
+    this->growSelection();
+    this->removeSelectedTriangles();
+    this->removeSmallestComponents(2);
+    c1 = ComponentStruct(t1);
+    c2 = ComponentStruct(t2);
+    return this->joinComponentsCloseBoundaries(c1.triangles, c2.triangles, DBL_MAX);
+}
+
 int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double joinDistance) {
     ComponentStruct cn(nl), cm(ml);
     cn.initializeBoundaries();
@@ -256,7 +301,7 @@ int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double joinDis
         while (loop2 = (List*) cm.boundaries->popHead()) {
             if(loopsHaveAllVerticesCloserThanDistance(loop1, loop2, joinDistance)
                 && closestPair(loop1, loop2, &bv, &bw)
-                && joinBoundaryLoops(bv, bw, false, true, true)) {
+                && joinBoundaryLoops(bv, bw, false, true, false)) {
                 ret++;
                 loop2->removeNodes();
                 break;
@@ -330,6 +375,19 @@ double ExtTriMesh::closestPair(List *l1, List *l2, Vertex **closest1, Vertex **c
         }
     }
     return mindist;
+}
+
+double ExtTriMesh::mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner) {
+    Node *m;
+    Vertex *w;
+    double adist, maxdist = 0;
+    FOREACHVVVERTEX(l, w, m) {
+        if ((adist = w->squaredDistance(v)) > maxdist) {
+            maxdist=adist;
+            *distantPartner = w;
+        }
+    }
+    return maxdist;
 }
 
 double ExtTriMesh::getClosestPartner(Vertex *v, List *l, Vertex **closestParnter) {

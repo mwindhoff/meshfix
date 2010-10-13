@@ -441,7 +441,8 @@ void usage()
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
  printf(" -n <n>              Only the <n> biggest input components are kept.\n");
- printf(" -j <d>              Join components closer than <d> or overlapping.\n");
+ printf(" -j                  Join two biggest components if they overlap, remove the rest.\n");
+// printf(" -j <d>              Join components closer than <d> or overlapping.\n");
  printf(" -jc                 Join the closest pair of components.\n");
  printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
  printf(" --no-clean          Don't clean.\n");
@@ -491,8 +492,8 @@ int main(int argc, char *argv[])
 
  float par = 0;
  unsigned numberComponentsToKeep = 1;
- bool joinCloseOrOverlappingComponents = false;
- float minAllowedDistance = 0;
+ bool joinOverlappingComponents = false;
+// float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
  int uniformRemeshSteps = 0;
  bool clean = true;
@@ -526,16 +527,16 @@ int main(int argc, char *argv[])
   }
   else if (!strcmp(argv[i], "-w")) save_vrml = true;
   else if (!strcmp(argv[i], "-s")) save_stl = true;
-  else if (!strcmp(argv[i], "-j")) {
+  else if (!strcmp(argv[i], "-j")) joinOverlappingComponents = true; /*{
       if (i<argc-1) {
           minAllowedDistance = atof(argv[i+1]);
-          joinCloseOrOverlappingComponents = true;
+          joinOverlappingComponents = true;
           if (minAllowedDistance < 0)
               JMesh::error("minAllowedDistance must be >= 0.\n");
           else
               i++;
       }
-  }
+  }*/
   else if (!strcmp(argv[i], "-u")) {
       if (i>=argc-1 || (uniformRemeshSteps = atoi(argv[i+1]))<1)
           JMesh::error("# uniform remesh steps must be >= 1.\n");
@@ -566,8 +567,10 @@ int main(int argc, char *argv[])
  // Fill holes by taking into account both sampling density and normal field continuity
  tin.fillSmallBoundaries(tin.E.numels(), true, true);
 
- if (joinCloseOrOverlappingComponents) {
-     tin.joinCloseOrOverlappingComponents( minAllowedDistance );
+ if (joinOverlappingComponents) {
+     tin.removeSmallestComponents(2);
+     tin.joinOverlappingComponentPair();
+//     tin.joinCloseOrOverlappingComponents( minAllowedDistance );
  }
  if (haveJoinClosestComponents)
  {
