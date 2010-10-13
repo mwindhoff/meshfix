@@ -56,13 +56,15 @@ class ExtTriMesh : public Triangulation
  // Mirko's functions
  void initializeOctree();
  int  joinCloseOrOverlappingComponents( double minAllowedDistance = 1.0 );
+ int  joinOverlappingComponentPair();
  // returns the number of joined boundaries
  int joinComponentsCloseBoundaries(List *nl, List *ml, double maxDistanceToJoin);
  bool loopsHaveAllVerticesCloserThanDistance(List *loop, List *loop2, const double &distance);
  //! Determines the closest pair of vertices of the lists l1,l2. Good for boundary loops.
  double closestPair(List *l1, List *l2, Vertex **closest1, Vertex **closest2);
- //! Determines the closes partner of a vertex in a list of vertices
+ //! Determines the closest partner of a vertex in a list of vertices
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
+ double mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner);
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
  //! Warning: The normals must be directed outwards of each component!
