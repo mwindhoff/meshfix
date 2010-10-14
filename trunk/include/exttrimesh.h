@@ -39,11 +39,12 @@ class ExtTriMesh : public Triangulation
 {
  public:
  TriangleOctree *ot;
+ double epsilon_angle;
  // Constructors
- ExtTriMesh() : Triangulation() { ot = NULL; }
- ExtTriMesh(const char *s) : Triangulation(s) { ot = NULL; }
- ExtTriMesh(const Triangulation *t) : Triangulation(t) { ot = NULL; }
- ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) { ot = NULL; }
+ ExtTriMesh() : Triangulation() { ot = NULL; epsilon_angle = 0; }
+ ExtTriMesh(const char *s) : Triangulation(s) { ot = NULL; epsilon_angle = 0; }
+ ExtTriMesh(const Triangulation *t) : Triangulation(t) { ot = NULL; epsilon_angle = 0; }
+ ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) { ot = NULL; epsilon_angle = 0; }
 
  Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
  Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
@@ -65,11 +66,21 @@ class ExtTriMesh : public Triangulation
  //! Determines the closest partner of a vertex in a list of vertices
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
  double mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner);
+ void moveSelectedTrianglesOutward(double dd = 1.0);
+ bool decoupleSecondFromFirstComponent(double dd = 1.0, unsigned max_iterations = 10);
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
  //! Warning: The normals must be directed outwards of each component!
  bool isPointInComponent(Vertex *v, ComponentStruct *c);
-
+ // Cleaning functions (src/cleaning.cpp)
+ void asciiAlign();
+ int swapAndCollapse();
+ bool removeDegenerateTriangles(int max_iters = 10, int num_to_keep = 1);
+ bool removeSelfIntersections(int max_iters, int number_components_to_keep = 1);
+ bool removeSelfIntersections2(int max_iterations, int number_components_to_keep = 1);
+ bool isDegeneracyFree();
+ void selectTrianglesInCubes();
+ bool clean(int max_iters = 10, int inner_loops = 3, int number_components_to_keep = 1);
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 
  void loopSubdivision(int);

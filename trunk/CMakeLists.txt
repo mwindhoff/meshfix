@@ -26,6 +26,7 @@ set(meshfix_src
     src/epsilonSampling.cpp
     src/simplification.cpp
     src/uniform.cpp
+    src/cleaning.cpp
 )
 add_custom_command(
     TARGET meshfix
