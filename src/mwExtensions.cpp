@@ -243,7 +243,7 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
 }
 
 /* Assumes that the Triangulation consists of exactly 2 components, each having no selfintersections.
-   If they overlap, they will bei joined and the overlapping parts will be deleted. */
+   If they overlap, they will be joined and the overlapping parts will be deleted. */
 int ExtTriMesh::joinOverlappingComponentPair() {
     this->deselectTriangles();
     List *components = this->getComponentsList();
@@ -402,3 +402,42 @@ double ExtTriMesh::getClosestPartner(Vertex *v, List *l, Vertex **closestParnter
     }
     return mindist;
 }
+
+void ExtTriMesh::moveSelectedTrianglesOutward(double dd) {
+    Point center;
+    Vertex *v;
+    Node *n;
+    FOREACHVERTEX(v, n) center += v;
+    center /= V.numels();
+    Triangle *t;
+    FOREACHTRIANGLE(t, n) if(IS_VISITED(t)) {
+        Vertex *v[3] = {t->v1(), t->v2(), t->v3()};
+        Vertex *vmin;
+        double dmin = DBL_MAX;
+        for(unsigned i = 0; i < 3; ++i) {
+            double d = center.squaredDistance(v[i]);
+            if(d < dmin) {
+                dmin = d;
+                vmin = v[i];
+            }
+        }
+        *vmin += (*vmin-center)*(dd/sqrt(dmin));
+    }
+}
+
+bool ExtTriMesh::decoupleSecondFromFirstComponent(double d, unsigned max_iterations) {
+    this->deselectTriangles();
+    List *components = this->getComponentsList();
+    if(components->numels() != 2) JMesh::error("Must have exactly 2 components.");
+    List *first = (List*) components->tail()->data;
+    Triangle *t; Node *n;
+    int iteration_counter = 0;
+    while(iteration_counter++ < max_iterations && this->selectIntersectingTriangles()) {
+        FOREACHVTTRIANGLE(first, t, n) UNMARK_VISIT(t);
+        this->moveSelectedTrianglesOutward(d);
+        this->deselectTriangles();
+    }
+    if(iteration_counter < max_iterations) return true;
+    return false;
+}
+

@@ -1,19 +1,18 @@
 #include "exttrimesh.h"
 #include <string.h>
 #include <stdlib.h>
-#include <jrs_predicates.h>
+#include "jrs_predicates.h"
 
 const char *input_filename;
-double epsilon_angle = 0.0;
 
 // Simulates the ASCII rounding error
-void asciiAlign(ExtTriMesh& tin)
+void ExtTriMesh::asciiAlign()
 {
  char outname[2048];
  Vertex *v;
  Node *m;
  float a;
- FOREACHVVVERTEX((&(tin.V)), v, m)
+ FOREACHVERTEX(v, m)
  {
   sprintf(outname,"%f",v->x); sscanf(outname,"%f",&a); v->x = a;
   sprintf(outname,"%f",v->y); sscanf(outname,"%f",&a); v->y = a;
@@ -23,7 +22,6 @@ void asciiAlign(ExtTriMesh& tin)
 
 
 // Return TRUE if the triangle is exactly degenerate
-
 inline bool isDegenerateEdge(Edge *e)
 {
  return ((*(e->v1))==(*(e->v2)));
@@ -32,17 +30,17 @@ inline bool isDegenerateEdge(Edge *e)
 bool isDegenerateTriangle(Triangle *t)
 {
  double xy1[2], xy2[2], xy3[2];
- xy1[0] = t->v1()->x; xy1[1] = t->v1()->y; 
- xy2[0] = t->v2()->x; xy2[1] = t->v2()->y; 
- xy3[0] = t->v3()->x; xy3[1] = t->v3()->y; 
+ xy1[0] = t->v1()->x; xy1[1] = t->v1()->y;
+ xy2[0] = t->v2()->x; xy2[1] = t->v2()->y;
+ xy3[0] = t->v3()->x; xy3[1] = t->v3()->y;
  if (orient2d(xy1, xy2, xy3)!=0.0) return false;
- xy1[0] = t->v1()->y; xy1[1] = t->v1()->z; 
- xy2[0] = t->v2()->y; xy2[1] = t->v2()->z; 
- xy3[0] = t->v3()->y; xy3[1] = t->v3()->z; 
+ xy1[0] = t->v1()->y; xy1[1] = t->v1()->z;
+ xy2[0] = t->v2()->y; xy2[1] = t->v2()->z;
+ xy3[0] = t->v3()->y; xy3[1] = t->v3()->z;
  if (orient2d(xy1, xy2, xy3)!=0.0) return false;
- xy1[0] = t->v1()->z; xy1[1] = t->v1()->x; 
- xy2[0] = t->v2()->z; xy2[1] = t->v2()->x; 
- xy3[0] = t->v3()->z; xy3[1] = t->v3()->x; 
+ xy1[0] = t->v1()->z; xy1[1] = t->v1()->x;
+ xy2[0] = t->v2()->z; xy2[1] = t->v2()->x;
+ xy3[0] = t->v3()->z; xy3[1] = t->v3()->x;
  if (orient2d(xy1, xy2, xy3)!=0.0) return false;
  return true;
 }
@@ -60,17 +58,17 @@ Edge *getLongestEdge(Triangle *t)
 // Iterate on all the selected triangles as long as possible.
 // Keep the selection only on the degeneracies that could not be removed.
 // Return the number of degeneracies that could not be removed
-int swap_and_collapse(ExtTriMesh *tin)
+int ExtTriMesh::swapAndCollapse()
 {
  Node *n;
  Triangle *t;
 
  if (epsilon_angle != 0.0)
  {
-  FOREACHVTTRIANGLE((&(tin->T)), t, n) UNMARK_VISIT(t);
-  JMesh::quiet = true; tin->removeDegenerateTriangles(); JMesh::quiet = false; 
+  FOREACHTRIANGLE(t, n) UNMARK_VISIT(t);
+  JMesh::quiet = true; removeDegenerateTriangles(); JMesh::quiet = false;
   int failed = 0;
-  FOREACHVTTRIANGLE((&(tin->T)), t, n) if (IS_VISITED(t)) failed++;
+  FOREACHTRIANGLE(t, n) if (IS_VISITED(t)) failed++;
   return failed;
  }
 
@@ -78,10 +76,10 @@ int swap_and_collapse(ExtTriMesh *tin)
  Edge *e;
  const int MAX_ATTEMPTS = 10;
 
- FOREACHVTTRIANGLE((&(tin->T)), t, n) t->info=0;
+ FOREACHTRIANGLE(t, n) t->info=0;
 
  // VISIT2 means that the triangle is in the list
- FOREACHVTTRIANGLE((&(tin->T)), t, n) if (IS_VISITED(t))
+ FOREACHTRIANGLE(t, n) if (IS_VISITED(t))
  {
   UNMARK_VISIT(t);
   if (isDegenerateTriangle(t)) {triangles.appendTail(t); MARK_VISIT2(t);}
@@ -110,11 +108,11 @@ int swap_and_collapse(ExtTriMesh *tin)
   }
  }
 
- tin->removeUnlinkedElements();
+ removeUnlinkedElements();
 
  int failed=0;
  // This should check only on actually processed triangles
- FOREACHVTTRIANGLE((&(tin->T)), t, n) if (isDegenerateTriangle(t)) {failed++; MARK_VISIT(t);}
+ FOREACHTRIANGLE(t, n) if (isDegenerateTriangle(t)) {failed++; MARK_VISIT(t);}
 
  JMesh::info("%d degeneracies selected\n",failed);
  return failed;
@@ -122,18 +120,18 @@ int swap_and_collapse(ExtTriMesh *tin)
 
 // returns true on success
 
-bool removeDegenerateTriangles(ExtTriMesh& tin, int max_iters, int num_to_keep = 1)
+bool ExtTriMesh::removeDegenerateTriangles(int max_iters, int num_to_keep)
 {
  int n, iter_count = 0;
 
  printf("Removing degeneracies...\n");
- while ((++iter_count) <= max_iters && swap_and_collapse(&tin))
+ while ((++iter_count) <= max_iters && swapAndCollapse())
  {
-  for (n=1; n<iter_count; n++) tin.growSelection();
-  tin.removeSelectedTriangles();
-  tin.removeSmallestComponents(num_to_keep);
-  JMesh::quiet = true; tin.fillSmallBoundaries(tin.E.numels()); JMesh::quiet = false;
-  asciiAlign(tin);
+  for (n=1; n<iter_count; n++) growSelection();
+  removeSelectedTriangles();
+  removeSmallestComponents(num_to_keep);
+  JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+  asciiAlign();
  }
 
  if (iter_count > max_iters) return false;
@@ -186,104 +184,104 @@ bool isVertexInCube(Vertex *v, List& loc)
  return false;
 }
 
-void selectTrianglesInCubes(ExtTriMesh& tin)
+void ExtTriMesh::selectTrianglesInCubes()
 {
  Triangle *t;
  Vertex *v;
  Node *n;
  List loc;
- FOREACHVTTRIANGLE((&(tin.T)), t, n) appendCubeToList(t, loc);
- FOREACHVVVERTEX((&(tin.V)), v, n) if (isVertexInCube(v, loc)) MARK_VISIT(v);
- FOREACHVTTRIANGLE((&(tin.T)), t, n)
+ FOREACHTRIANGLE(t, n) appendCubeToList(t, loc);
+ FOREACHVERTEX(v, n) if (isVertexInCube(v, loc)) MARK_VISIT(v);
+ FOREACHTRIANGLE(t, n)
  {
   UNMARK_VISIT2(t);
   if (IS_VISITED(t->v1()) || IS_VISITED(t->v2()) || IS_VISITED(t->v3())) MARK_VISIT(t);
  }
- FOREACHVVVERTEX((&(tin.V)), v, n) UNMARK_VISIT(v);
+ FOREACHVERTEX(v, n) UNMARK_VISIT(v);
  loc.freeNodes();
 }
 
 // returns true on success
 
-bool removeSelfIntersections(ExtTriMesh& tin, int max_iters, int number_components_to_keep = 1)
+bool ExtTriMesh::removeSelfIntersections(int max_iters, int number_components_to_keep)
 {
  int n, iter_count = 0;
 
  printf("Removing self-intersections...\n");
- while ((++iter_count) <= max_iters && tin.selectIntersectingTriangles())
+ while ((++iter_count) <= max_iters && selectIntersectingTriangles())
  {
-  for (n=1; n<iter_count; n++) tin.growSelection();
-  tin.removeSelectedTriangles();
-  tin.removeSmallestComponents(number_components_to_keep);
-  JMesh::quiet = true; tin.fillSmallBoundaries(tin.E.numels()); JMesh::quiet = false;
-  asciiAlign(tin);
-  selectTrianglesInCubes(tin);
+  for (n=1; n<iter_count; n++) growSelection();
+  removeSelectedTriangles();
+  removeSmallestComponents(number_components_to_keep);
+  JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+  asciiAlign();
+  selectTrianglesInCubes();
  }
 
  if (iter_count > max_iters) return false;
  return true;
 }
 
-bool removeSelfIntersections2(ExtTriMesh& tin, int max_iterations, int number_components_to_keep = 1)
+bool ExtTriMesh::removeSelfIntersections2(int max_iterations, int number_components_to_keep)
 {
     int iteration_counter = 0, remove_and_fill_counter = 0, smooth_counter = 0, grow_counter = 0;
     printf("Removing self-intersections (using advanced method)...\n");
     int nintersecting = 0, nintersecting_new = 0;
-    tin.deselectTriangles();
-    tin.invertSelection();
+    deselectTriangles();
+    invertSelection();
     JMesh::info("Stage: Remove and Fill (1)\n");
     while (true)
     {
         iteration_counter++;
-        asciiAlign(tin);
-        if((nintersecting_new = tin.selectIntersectingTriangles(10)) > 0) {
+        asciiAlign();
+        if((nintersecting_new = selectIntersectingTriangles(10)) > 0) {
             remove_and_fill_counter++;
             // remove intersecting triangles
-            tin.removeSelectedTriangles();
+            removeSelectedTriangles();
             // remove smallest shells
-            tin.removeSmallestComponents(number_components_to_keep);
+            removeSmallestComponents(number_components_to_keep);
             // fill, refine, fair, keep new triangles selected
-            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true); JMesh::quiet=false;
+            JMesh::quiet=true; fillSmallBoundaries(E.numels(), true); JMesh::quiet=false;
             // grow selection, recheck selection for intersections
-            tin.growSelection();
+            growSelection();
             if (nintersecting != nintersecting_new && remove_and_fill_counter < max_iterations*2) {
                 // the last iteration resulted in different holes as before
                 nintersecting = nintersecting_new;
                 continue;
             }
         } else {
-            tin.deselectTriangles();
-            if(!tin.selectIntersectingTriangles())
+            deselectTriangles();
+            if(!selectIntersectingTriangles())
                 return true; // we have reached the end
             continue;
         }
         remove_and_fill_counter = 0;
         JMesh::info("Stage: Laplacian Smooth (%d)\n", smooth_counter+1);
         // next step is smoothing
-        tin.deselectTriangles();
-        tin.removeSmallestComponents(number_components_to_keep);
-        if(!tin.selectIntersectingTriangles()) continue;
+        deselectTriangles();
+        removeSmallestComponents(number_components_to_keep);
+        if(!selectIntersectingTriangles()) continue;
         if(smooth_counter++ < max_iterations) {
             JMesh::info("Laplacian smoothing of selected triangles.\n");
             // increase region to smooth
-            for( int i = 0; i < smooth_counter; i++) tin.growSelection();
+            for( int i = 0; i < smooth_counter; i++) growSelection();
             // smooth with 1 step, keep selection
-            JMesh::quiet=true; tin.laplacianSmooth(); JMesh::quiet=false;
-            tin.growSelection();
+            JMesh::quiet=true; laplacianSmooth(); JMesh::quiet=false;
+            growSelection();
             nintersecting = 0;
             JMesh::info("Stage: Remove and Fill (%d)\n", iteration_counter+1);
             continue;
         }
         smooth_counter = 0;
         JMesh::info("Stage: Grow selection, Remove and Fill (%d)\n", grow_counter+1);
-        tin.deselectTriangles();
-        tin.removeSmallestComponents(number_components_to_keep);
-        if(tin.selectIntersectingTriangles()) {
+        deselectTriangles();
+        removeSmallestComponents(number_components_to_keep);
+        if(selectIntersectingTriangles()) {
             for (int i=0; i < grow_counter+1; i++)
-                tin.growSelection();
-            tin.removeSelectedTriangles();
-            tin.removeSmallestComponents(number_components_to_keep);
-            JMesh::quiet=true; tin.fillSmallBoundaries(tin.E.numels(), true); JMesh::quiet=false;
+                growSelection();
+            removeSelectedTriangles();
+            removeSmallestComponents(number_components_to_keep);
+            JMesh::quiet=true; fillSmallBoundaries(E.numels(), true); JMesh::quiet=false;
             if (++grow_counter >= max_iterations) break;
             JMesh::info("Stage: Remove and Fill (%d)\n", iteration_counter+1);
         }
@@ -292,15 +290,15 @@ bool removeSelfIntersections2(ExtTriMesh& tin, int max_iterations, int number_co
 }
 
 
-bool isDegeneracyFree(ExtTriMesh& tin)
+bool ExtTriMesh::isDegeneracyFree()
 {
  Node *n;
  Triangle *t;
 
  if (epsilon_angle != 0.0)
- {FOREACHVTTRIANGLE((&(tin.T)), t, n) if (t->isDegenerate()) return false;}
+ {FOREACHTRIANGLE(t, n) if (t->isDegenerate()) return false;}
  else
- {FOREACHVTTRIANGLE((&(tin.T)), t, n) if (isDegenerateTriangle(t)) return false;}
+ {FOREACHTRIANGLE(t, n) if (isDegenerateTriangle(t)) return false;}
 
  return true;
 }
@@ -308,25 +306,24 @@ bool isDegeneracyFree(ExtTriMesh& tin)
 
 // returns true on success
 
-bool meshclean(ExtTriMesh& tin, int max_iters = 10, int inner_loops = 3, int number_components_to_keep = 1)
+bool ExtTriMesh::clean(int max_iters, int inner_loops, int number_components_to_keep)
 {
  bool ni, nd;
 
- tin.deselectTriangles();
- tin.invertSelection();
+ deselectTriangles();
+ invertSelection();
 
  for (int n=0; n<max_iters; n++)
  {
   printf("********* ITERATION %d *********\n",n);
-  nd=removeDegenerateTriangles(tin, inner_loops);
-  tin.deselectTriangles(); tin.invertSelection();
-  ni=removeSelfIntersections2(tin, inner_loops, number_components_to_keep);
-  if (ni && nd && isDegeneracyFree(tin)) return true;
+  nd=removeDegenerateTriangles(inner_loops);
+  deselectTriangles(); invertSelection();
+  ni=removeSelfIntersections2(inner_loops, number_components_to_keep);
+  if (ni && nd && isDegeneracyFree()) return true;
  }
 
  return false;
 }
-
 
 
 double closestPair(List *bl1, List *bl2, Vertex **closest_on_bl1, Vertex **closest_on_bl2)
@@ -339,9 +336,9 @@ double closestPair(List *bl1, List *bl2, Vertex **closest_on_bl1, Vertex **close
   FOREACHVVVERTEX(bl2, w, m)
    if ((adist = w->squaredDistance(v))<mindist)
    {
-	mindist=adist;
-	*closest_on_bl1 = v;
-	*closest_on_bl2 = w;
+    mindist=adist;
+    *closest_on_bl1 = v;
+    *closest_on_bl2 = w;
    }
 
  return mindist;
@@ -435,16 +432,18 @@ bool joinClosestComponents(ExtTriMesh *tin, bool justconnect = false, bool refin
 void usage()
 {
  printf("%s v%s - by %s.\n=====================================================\n", JMesh::app_name, JMesh::app_version, JMesh::app_authors);
- printf("USAGE: meshfix <meshfile1> [<meshfile2>] [-a <epsilon_angle>] [-w] [-s] [-n <n>] [-o <output>]\n");
- printf("  Processes <meshfile1> and saves the result to <meshfile1>_fixed.off.\n");
- printf("  An optionally passed <meshfile2> is merged with the first one.\n");
+ printf("USAGE: meshfix <file1> [<file2>] [OPTIONS]\n");
+ printf("  Processes <meshfile1> and saves the result to <file1>_fixed.off.\n");
+ printf("  An optionally passed <file2> is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
  printf(" -n <n>              Only the <n> biggest input components are kept.\n");
- printf(" -j                  Join two biggest components if they overlap, remove the rest.\n");
+ printf(" -j                  Join 2 biggest components if they overlap, remove the rest.\n");
 // printf(" -j <d>              Join components closer than <d> or overlapping.\n");
  printf(" -jc                 Join the closest pair of components.\n");
  printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
+ printf(" --decouple          Treat 1st file as inner, 2nd file as outer component.\n");
+ printf("                     Resolve intersections by moving outer triangles outward.\n");
  printf(" --no-clean          Don't clean.\n");
  printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
  printf(" -s                  Result is saved in STL     format instead of OFF.\n");
@@ -496,6 +495,7 @@ int main(int argc, char *argv[])
 // float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
  int uniformRemeshSteps = 0;
+ bool haveDecouple = false;
  bool clean = true;
  bool save_vrml = false;
  bool save_stl = false;
@@ -508,10 +508,10 @@ int main(int argc, char *argv[])
    if (i<argc-1) par = (float)atof(argv[i+1]); else par = 0;
    if (par < 0) JMesh::error("Epsilon angle must be > 0.\n");
    if (par > 2) JMesh::error("Epsilon angle must be < 2 degrees.\n");
-   epsilon_angle = par;
-   if (epsilon_angle)
+   tin.epsilon_angle = par;
+   if (tin.epsilon_angle)
    {
-	JMesh::acos_tolerance = asin((M_PI*epsilon_angle)/180.0);
+    JMesh::acos_tolerance = asin((M_PI*tin.epsilon_angle)/180.0);
 	printf("Fixing asin tolerance to %e\n",JMesh::acos_tolerance);
     i++;
    }
@@ -542,6 +542,7 @@ int main(int argc, char *argv[])
           JMesh::error("# uniform remesh steps must be >= 1.\n");
       i++;
   }
+  else if (!strcmp(argv[i], "--decouple")) haveDecouple = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
   else if (!strcmp(argv[i], "-o")) {
@@ -586,9 +587,15 @@ int main(int argc, char *argv[])
      tin.uniformRemesh(uniformRemeshSteps, 0, tin.E.numels());
  }
 
+ if (haveDecouple) {
+     printf("Decoupling first component from second one.\n");
+     if(tin.shells() != 2) JMesh::warning("Incorrect number von components, won't decouple. Having %d and should have 2.", tin.shells());
+     else tin.decoupleSecondFromFirstComponent(1, 50);
+ }
+
  // Run geometry correction
  if (clean) {
-     if (tin.boundaries() || !meshclean(tin, 10, 3, numberComponentsToKeep)) {
+     if (tin.boundaries() || !tin.clean(10, 3, numberComponentsToKeep)) {
       fprintf(stderr,"MeshFix failed!\n");
       fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
       FILE *fp = fopen("meshfix_log.txt","a");

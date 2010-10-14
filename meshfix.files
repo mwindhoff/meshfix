@@ -67,3 +67,4 @@ include/epsilonSampling.h
 src/simplification.cpp
 src/uniform.cpp
 src/epsilonSampling.cpp
+src/cleaning.cpp
