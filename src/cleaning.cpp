@@ -116,7 +116,7 @@ int ExtTriMesh::swapAndCollapse()
 
 // returns true on success
 
-bool ExtTriMesh::removeDegenerateTriangles(int max_iters, int num_to_keep)
+bool ExtTriMesh::cleanDegenerateTriangles(int max_iters, int num_to_keep)
 {
  int n, iter_count = 0;
 
@@ -129,7 +129,6 @@ bool ExtTriMesh::removeDegenerateTriangles(int max_iters, int num_to_keep)
   JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
   asciiAlign();
  }
-
  if (iter_count > max_iters) return false;
  return true;
 }
@@ -312,7 +311,7 @@ bool ExtTriMesh::clean(int max_iters, int inner_loops, int number_components_to_
  for (int n=0; n<max_iters; n++)
  {
   printf("********* ITERATION %d *********\n",n);
-  nd=removeDegenerateTriangles(inner_loops);
+  nd=cleanDegenerateTriangles(inner_loops, number_components_to_keep);
   deselectTriangles(); invertSelection();
   ni=removeSelfIntersections2(inner_loops, number_components_to_keep);
   if (ni && nd && isDegeneracyFree()) return true;

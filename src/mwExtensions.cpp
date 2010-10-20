@@ -1,6 +1,6 @@
 #include "exttrimesh.h"
 #include "component.h"
-#include <map>
+#include "detectIntersections.h"
 
 void ExtTriMesh::initializeOctree() {
     Point b1,b2;
@@ -247,11 +247,11 @@ int ExtTriMesh::joinCloseOrOverlappingComponents( double minAllowedDistance ) {
 int ExtTriMesh::joinOverlappingComponentPair() {
     this->deselectTriangles();
     List *components = this->getComponentsList();
-    if( components->numels() > 2 ) JMesh::error("Triangulation consists of more than 2 components.");
-    if( components->numels() < 2 ) { JMesh::info("Only 1 component, nothing joined."); return 0; }
+    if( components->numels() > 2 ) JMesh::error("Triangulation consists of more than 2 components.\n");
+    if( components->numels() < 2 ) { JMesh::info("Only 1 component, nothing joined.\n"); return 0; }
     // select the intersecting triangles, which form the boundaries
     if(!this->selectIntersectingTriangles()) {
-        JMesh::info("Component pair doesn't overlap. Nothing joined.");
+        JMesh::info("Component pair doesn't overlap. Nothing joined.\n");
         return 0;
     }
     // Identify the two most distant triangles (which are assumed to be not part of the overlap),
@@ -272,7 +272,7 @@ int ExtTriMesh::joinOverlappingComponentPair() {
     t2 = v2->e0->t1;
     // now delete the boundaries and have at least 2 shells with boundaries
     this->removeSelectedTriangles();
-    if(!t1 || !t2) JMesh::error("Algorithm using most distant points didn't work ...");
+    if(!t1 || !t2) JMesh::error("Algorithm using most distant points didn't work ...\n");
     this->selectConnectedComponent(t1, false);
     this->selectConnectedComponent(t2, false);
     this->invertSelection();
@@ -403,40 +403,101 @@ double ExtTriMesh::getClosestPartner(Vertex *v, List *l, Vertex **closestParnter
     return mindist;
 }
 
-void ExtTriMesh::moveSelectedTrianglesOutward(double dd) {
-    Point center;
-    Vertex *v;
-    Node *n;
-    FOREACHVERTEX(v, n) center += v;
-    center /= V.numels();
-    Triangle *t;
-    FOREACHTRIANGLE(t, n) if(IS_VISITED(t)) {
-        Vertex *v[3] = {t->v1(), t->v2(), t->v3()};
-        Vertex *vmin;
-        double dmin = DBL_MAX;
-        for(unsigned i = 0; i < 3; ++i) {
-            double d = center.squaredDistance(v[i]);
-            if(d < dmin) {
-                dmin = d;
-                vmin = v[i];
+int ExtTriMesh::moveVerticesInwards(Point &componentCenter, std::map<Vertex *, Point> &origin, double stepsize, double distance) {
+    List todo(new di_cell(this)), cells;
+    di_cell *c, *c2;
+    int i = 0;
+    int ret = 0;
+    double stepsize2 = stepsize*stepsize;
+    while (c = (di_cell *)todo.popHead()) {
+        if (i > DI_MAX_NUMBER_OF_CELLS || c->triangles.numels() <= 10 || (c->Mp-c->mp).length() < distance) cells.appendHead(c);
+        else {
+            i++;
+            JMesh::report_progress(NULL);
+            c2 = c->fork();
+            if (!c->containsBothShells(1,2)) delete(c); else todo.appendTail(c);
+            if (!c2->containsBothShells(1,2)) delete(c2); else todo.appendTail(c2);
+        }
+    }
+    JMesh::report_progress("");
+    Node *n, *m;
+    Triangle *t, *t2;
+    Vertex *v1, *v2;
+    double distance2 = distance*distance;
+    while (c = (di_cell *)cells.popHead()) {
+        std::set<Vertex*> vertices;
+        FOREACHVTTRIANGLE((&c->triangles), t, n) { vertices.insert(t->v1()); vertices.insert(t->v2()); vertices.insert(t->v3()); }
+        for(std::set<Vertex*>::const_iterator itv1 = vertices.begin(); itv1 != vertices.end(); ++itv1) {
+            v1 = *itv1;
+            if(IS_BIT(v1, 2)) {
+                FOREACHVTTRIANGLE((&c->triangles), t, n) if(IS_BIT(t, 1)) {
+                    Point center = t->getCircleCenter();
+                    double radius2 = MAX(center.squaredDistance(t->v1()),distance2);
+                    if(center.squaredDistance(v1) < radius2) {
+                        Point n = t->getNormal()*distance, p = center + n;
+                        v2->intersectionWithPlane(v1, &origin[v1], &p, &n);
+                        if(v1->squaredDistance(&origin[v1]) > v2->squaredDistance(&origin[v1]))
+                            *v1 += *v2 - *v1;
+                        UNMARK_BIT(v1,2);
+                    }
+                }
             }
         }
-        *vmin += (*vmin-center)*(dd/sqrt(dmin));
     }
+    FOREACHVERTEX(v1, n) if(IS_BIT(v1,2)) {
+        double dist = origin[v1].distance(v1);
+        if(dist > stepsize) *v1 += (origin[v1]-(*v1))*(stepsize/dist);
+        else { *v1 = origin[v1]; UNMARK_BIT(v1,2); }
+        ret++;
+    }
+    return ret;
 }
 
 bool ExtTriMesh::decoupleSecondFromFirstComponent(double d, unsigned max_iterations) {
-    this->deselectTriangles();
-    List *components = this->getComponentsList();
-    if(components->numels() != 2) JMesh::error("Must have exactly 2 components.");
-    List *first = (List*) components->tail()->data;
-    Triangle *t; Node *n;
     int iteration_counter = 0;
-    while(iteration_counter++ < max_iterations && this->selectIntersectingTriangles()) {
-        FOREACHVTTRIANGLE(first, t, n) UNMARK_VISIT(t);
-        this->moveSelectedTrianglesOutward(d);
-        this->deselectTriangles();
+    // switch the order of the components
+    T.appendHead(T.popTail());
+    List *components = this->getComponentsList();
+    if(components->numels() != 2) JMesh::error("Must have exactly 2 components.\n");
+    List *first = (List*) components->head()->data;
+    Node *n;
+    Triangle *t;
+    FOREACHVTTRIANGLE(first, t, n) {
+        MARK_BIT(t,1);
+        MARK_BIT(t->v1(),1);
+        MARK_BIT(t->v2(),1);
+        MARK_BIT(t->v3(),1);
     }
+    FOREACHTRIANGLE(t, n) if(!IS_BIT(t,1)) {
+        MARK_BIT(t,2);
+        MARK_BIT(t->v1(),2);
+        MARK_BIT(t->v2(),2);
+        MARK_BIT(t->v3(),2);
+    }
+    // save origin of each point
+    Vertex *v;
+    std::map<Vertex*, Point> origin;
+    FOREACHVERTEX(v, n) origin.insert(std::pair<Vertex*, Point>(v,Point(*v)));
+    // get center of the component
+    Point center;
+    FOREACHVERTEX(v, n) center += *v;
+    center /= V.numels();
+    // get radius of the component
+    double maxdist = 0;
+    FOREACHVERTEX(v, n) maxdist = MAX(maxdist, center.squaredDistance(v));
+    // move all vertices to the radius
+    maxdist = sqrt(maxdist);
+    FOREACHVERTEX(v, n) if(IS_BIT(v,2)) {
+        Point shift = (*v)-center;
+        double l = shift.length();
+        *v += shift*(maxdist-l)/l;
+    }
+    while(iteration_counter++ < max_iterations) {
+        printf("iteration %d\n", iteration_counter);
+        FOREACHTRIANGLE(t, n) if(IS_BIT(t,2) && !IS_BIT(t->v1(),2) && !IS_BIT(t->v2(),2) && !IS_BIT(t->v3(),2)) UNMARK_BIT(t,2);
+        if(!this->moveVerticesInwards(center, origin, d, 1.5*d)) break;
+    }
+//    this->clean(10, 3, 2);
     if(iteration_counter < max_iterations) return true;
     return false;
 }

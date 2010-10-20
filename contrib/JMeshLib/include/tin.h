@@ -112,7 +112,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Input/Output methods (Implemented in "MESH_STRUCTURE/io.C")
+ // Input/Output methods (Implemented in "MESH_STRUCTURE/io.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -195,7 +195,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Primitive Construction (Implemented in "MESH_STRUCTURE/tin.C")
+ // Primitive Construction (Implemented in "MESH_STRUCTURE/tin.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -240,7 +240,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Primitive Destruction (Implemented in "MESH_STRUCTURE/tin.C")
+ // Primitive Destruction (Implemented in "MESH_STRUCTURE/tin.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -284,7 +284,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Methods acting on selections (Implemented in "MESH_STRUCTURE/tin.C")
+ // Methods acting on selections (Implemented in "MESH_STRUCTURE/tin.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -318,7 +318,8 @@ class Triangulation
  void invertSelection(Triangle *t0 =NULL);
 
  //! If 't0' is selected, deselect everything but the selected triangles connected to 't0'
- void reselectSelection(Triangle *t0);
+ //! selectBit determines the target bit number (default 0 == IS_VISITED)
+ void reselectSelection(Triangle *t0, char selectBit = 0, bool deselectOthers = true);
 
  //! Creates a new Triangulation out of an existing selection containing 't0'. O(output).
 
@@ -395,7 +396,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Region manipulation (Implemented in "MESH_STRUCTURE/tin.C")
+ // Region manipulation (Implemented in "MESH_STRUCTURE/tin.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -412,6 +413,7 @@ class Triangulation
  void      removeRegion(Triangle *t0, const double L, const Point *p);
 
  //! Get the vertex next to 'v' on the boundary of the region. O(1).
+ //! UPDATE: Use Vertex::nextOnBoundary(0) instead.
  Vertex   *nextVertexOnRegionBoundary(Vertex *v) const;
 
  //! Retrieve internal vertices of a region. O(l->numels()).
@@ -432,7 +434,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Global Operations (Implemented in "MESH_STRUCTURE/tin.C")
+ // Global Operations (Implemented in "MESH_STRUCTURE/tin.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -481,7 +483,7 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Surface topology manipulation (Implemented in "MESH_STRUCTURE/tin.C")
+ // Surface topology manipulation (Implemented in "MESH_STRUCTURE/tin.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
@@ -507,20 +509,20 @@ class Triangulation
 
  /////////////////////////////////////////////////////////////////////////////
  //
- // Handling wrong topology (Implemented in "MESH_STRUCTURE/checkAndRepair.C")
+ // Handling wrong topology (Implemented in "MESH_STRUCTURE/checkAndRepair.cpp")
  //
  /////////////////////////////////////////////////////////////////////////////
 
- int       removeSmallestComponents( unsigned number_to_keep = 1);		// (in "MESH_STRUCTURE/checkAndRepair.C")
- int       forceNormalConsistence();		// (in "MESH_STRUCTURE/checkAndRepair.C")
- int       forceNormalConsistence(Triangle *);	// (in "MESH_STRUCTURE/checkAndRepair.C")
- int       duplicateNonManifoldVertices();	// (in "MESH_STRUCTURE/checkAndRepair.C")
- const char *checkConnectivity();			// (in "MESH_STRUCTURE/checkAndRepair.C")
- int       removeDuplicatedTriangles();		// (in "MESH_STRUCTURE/checkAndRepair.C")
- int       checkAndRepair();			// (in "MESH_STRUCTURE/checkAndRepair.C")
+ int         removeSmallestComponents( unsigned number_to_keep = 1);
+ int         forceNormalConsistence();
+ int         forceNormalConsistence(Triangle *);
+ int         duplicateNonManifoldVertices();
+ const char *checkConnectivity();
+ int         removeDuplicatedTriangles();
+ int         checkAndRepair();
 
 
- // Degenerate geometry manipulation (Implemented in "MESH_STRUCTURE/checkAndRepair.C")
+ // Degenerate geometry manipulation (Implemented in "MESH_STRUCTURE/checkAndRepair.cpp")
 
  int     mergeCoincidentEdges();
  int     removeDegenerateTriangles();

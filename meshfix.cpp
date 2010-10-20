@@ -267,12 +267,13 @@ int main(int argc, char *argv[])
 
  if (haveDecouple) {
      printf("Decoupling first component from second one.\n");
-     if(tin.shells() != 2) JMesh::warning("Incorrect number von components, won't decouple. Having %d and should have 2.", tin.shells());
-     else tin.decoupleSecondFromFirstComponent(1, 50);
+     if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
+     else tin.decoupleSecondFromFirstComponent(1, 150);
  }
 
  // Run geometry correction
  if (clean) {
+     printf("Cleaning intersections, degeneracies ...\n");
      if (tin.boundaries() || !tin.clean(10, 3, numberComponentsToKeep)) {
       fprintf(stderr,"MeshFix failed!\n");
       fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
