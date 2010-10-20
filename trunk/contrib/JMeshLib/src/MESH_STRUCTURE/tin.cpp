@@ -614,24 +614,25 @@ void Triangulation::invertSelection(Triangle *t0)
 }
 
 
-void Triangulation::reselectSelection(Triangle *t0)
+void Triangulation::reselectSelection(Triangle *t0, char selectBit, bool deselectOthers)
 {
  if (!IS_VISITED(t0)) return;
 
  Node *n;
  Triangle *t, *s;
  List triList(t0);
- MARK_VISIT2(t0);
+ char tmpBit = selectBit == 1 ? 2 : 1;
+ MARK_BIT(t0,tmpBit);
 
  while(triList.numels())
  {
   t = (Triangle *)triList.popHead();
-  if ((s = t->t1()) != NULL && !IS_VISITED2(s) && IS_VISITED(s)) {triList.appendHead(s); MARK_VISIT2(s);}
-  if ((s = t->t2()) != NULL && !IS_VISITED2(s) && IS_VISITED(s)) {triList.appendHead(s); MARK_VISIT2(s);}
-  if ((s = t->t3()) != NULL && !IS_VISITED2(s) && IS_VISITED(s)) {triList.appendHead(s); MARK_VISIT2(s);}
+  if ((s = t->t1()) != NULL && !IS_BIT(s,tmpBit) && IS_VISITED(s)) {triList.appendHead(s); MARK_BIT(s,tmpBit);}
+  if ((s = t->t2()) != NULL && !IS_BIT(s,tmpBit) && IS_VISITED(s)) {triList.appendHead(s); MARK_BIT(s,tmpBit);}
+  if ((s = t->t3()) != NULL && !IS_BIT(s,tmpBit) && IS_VISITED(s)) {triList.appendHead(s); MARK_BIT(s,tmpBit);}
  }
 
- FOREACHTRIANGLE(t, n) if (!IS_VISITED2(t)) UNMARK_VISIT(t); else UNMARK_VISIT2(t);
+ FOREACHTRIANGLE(t, n) if (IS_BIT(t,tmpBit)) MARK_BIT(t, selectBit); else if(deselectOthers) UNMARK_VISIT(t);
 }
 
 // Creates a new mesh out of a selection.

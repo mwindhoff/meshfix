@@ -58,11 +58,15 @@ class di_cell
  di_cell *fork();
 
  bool doesNotIntersectForSure();
+ bool containsBothShells(short markBitShell1 = 0, short markBitShell2 = 1);
+ void initializeEdges();
  void di_selectIntersections();
 
  bool collinearPoints(Point *, Point *, Point *);
- Point *edgeIntersectsTriangle(Edge *, Triangle *, Edge **);
- Point *edgeEdgeIntersection(Edge *, Edge *);
 };
+//
+//// functions, that don't need the object
+//Point *edgeIntersectsTriangle(Edge *, Triangle *, Edge **);
+//Point *edgeEdgeIntersection(Edge *, Edge *);
 
 #endif // DETECT_INTERSECTIONS_H

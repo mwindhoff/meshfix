@@ -42,7 +42,7 @@ inline double di_remeshOrient3D(Point *p1, Point *p2, Point *p3, Point *p4)
 // Intersection point between two edges.
 // Edges are assumed to intersect properly.
 
-Point *di_cell::edgeEdgeIntersection(Edge *a, Edge *b)
+Point *edgeEdgeIntersection(Edge *a, Edge *b)
 {
  Edge *e1, *e2;
 
@@ -62,7 +62,7 @@ Point *di_cell::edgeEdgeIntersection(Edge *a, Edge *b)
 // Intersection point between 'e' and 't'.
 // Returns NULL if e does not intersect t or if e and t are coplanar.
 
-Point *di_cell::edgeIntersectsTriangle(Edge *e, Triangle *t, Edge **te)
+Point *edgeIntersectsTriangle(Edge *e, Triangle *t, Edge **te)
 {
  if (t->hasEdge(e)) return NULL;
 
@@ -172,13 +172,14 @@ di_cell *di_cell::fork()
  di_cell *nc = new di_cell;
  List tmp;
 
+ nc->mp = mp; nc->Mp = Mp;
  if (e.x > e.y && e.x > e.z)
-  {nc->mp = mp; nc->Mp = Mp; nc->Mp.x -= (e.x/2); mp.x += (e.x/2);}
+  {nc->Mp.x -= (e.x/2); mp.x += (e.x/2);}
  else if (e.y > e.x && e.y > e.z)
-  {nc->mp = mp; nc->Mp = Mp; nc->Mp.y -= (e.y/2); mp.y += (e.y/2);}
+  {nc->Mp.y -= (e.y/2); mp.y += (e.y/2);}
  else
-  {nc->mp = mp; nc->Mp = Mp; nc->Mp.z -= (e.z/2); mp.z += (e.z/2);}
- 
+  {nc->Mp.z -= (e.z/2); mp.z += (e.z/2);}
+
  while ((t=(Triangle *)triangles.popHead()) != NULL)
  {
   if (is_triangleBB_in_cell(t)) tmp.appendHead(t);
@@ -256,6 +257,14 @@ void di_cell::di_selectIntersections()
     if (e->t1 != NULL) MARK_VISIT(e->t1);
     if (e->t2 != NULL) MARK_VISIT(e->t2);
    }
+}
+
+// Function to detect close triangles
+bool di_cell::containsBothShells(short markBitShell1, short markBitShell2) {
+    Triangle *t; Node *n;
+    char found = 0, mask = (1<<markBitShell1) | (1<<markBitShell2);
+    FOREACHVTTRIANGLE((&triangles), t, n) if( (found |= (t->mask & mask)) == mask ) return true;
+    return false;
 }
 
 

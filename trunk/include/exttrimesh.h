@@ -33,6 +33,7 @@
 #include "triangleoctree.h"
 #include "component.h"
 #include <set>
+#include <map>
 using std::set;
 
 class ExtTriMesh : public Triangulation
@@ -66,7 +67,7 @@ class ExtTriMesh : public Triangulation
  //! Determines the closest partner of a vertex in a list of vertices
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
  double mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner);
- void moveSelectedTrianglesOutward(double dd = 1.0);
+ int moveVerticesInwards(Point &componentCenter, std::map<Vertex*,Point> &origin, double stepsize = 1.0, double distance = 1.0);
  bool decoupleSecondFromFirstComponent(double dd = 1.0, unsigned max_iterations = 10);
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
@@ -75,7 +76,7 @@ class ExtTriMesh : public Triangulation
  // Cleaning functions (src/cleaning.cpp)
  void asciiAlign();
  int swapAndCollapse();
- bool removeDegenerateTriangles(int max_iters = 10, int num_to_keep = 1);
+ bool cleanDegenerateTriangles(int max_iters = 10, int num_to_keep = 1);
  bool removeSelfIntersections(int max_iters, int number_components_to_keep = 1);
  bool removeSelfIntersections2(int max_iterations, int number_components_to_keep = 1);
  bool isDegeneracyFree();
