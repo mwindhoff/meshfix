@@ -455,50 +455,181 @@ int ExtTriMesh::moveVerticesInwards(Point &componentCenter, std::map<Vertex *, P
 
 bool ExtTriMesh::decoupleSecondFromFirstComponent(double d, unsigned max_iterations) {
     int iteration_counter = 0;
-    // switch the order of the components
-    T.appendHead(T.popTail());
-    List *components = this->getComponentsList();
-    if(components->numels() != 2) JMesh::error("Must have exactly 2 components.\n");
-    List *first = (List*) components->head()->data;
-    Node *n;
-    Triangle *t;
-    FOREACHVTTRIANGLE(first, t, n) {
-        MARK_BIT(t,1);
-        MARK_BIT(t->v1(),1);
-        MARK_BIT(t->v2(),1);
-        MARK_BIT(t->v3(),1);
-    }
-    FOREACHTRIANGLE(t, n) if(!IS_BIT(t,1)) {
-        MARK_BIT(t,2);
-        MARK_BIT(t->v1(),2);
-        MARK_BIT(t->v2(),2);
-        MARK_BIT(t->v3(),2);
-    }
     // save origin of each point
-    Vertex *v;
-    std::map<Vertex*, Point> origin;
-    FOREACHVERTEX(v, n) origin.insert(std::pair<Vertex*, Point>(v,Point(*v)));
-    // get center of the component
-    Point center;
-    FOREACHVERTEX(v, n) center += *v;
-    center /= V.numels();
-    // get radius of the component
-    double maxdist = 0;
-    FOREACHVERTEX(v, n) maxdist = MAX(maxdist, center.squaredDistance(v));
-    // move all vertices to the radius
-    maxdist = sqrt(maxdist);
-    FOREACHVERTEX(v, n) if(IS_BIT(v,2)) {
-        Point shift = (*v)-center;
-        double l = shift.length();
-        *v += shift*(maxdist-l)/l;
-    }
+    Vertex *v, *v1, *v2, *v3;
+    ExtTriMesh *tmptin;
+    std::map<Vertex*, Point> origin, shift;
+    std::map<Vertex*, int> numNormals;
+    Node *n;
+    FOREACHVERTEX(v, n)
+        origin.insert(std::pair<Vertex*, Point>(v,Point(*v)));
     while(iteration_counter++ < max_iterations) {
+        // switch the order of the components
+        T.appendHead(T.popTail());
+        List *components = this->getComponentsList();
+        if(components->numels() != 2) JMesh::error("Must have exactly 2 components.\n");
+        List *first = (List*) components->head()->data;
+        Triangle *t;
+        FOREACHVTTRIANGLE(first, t, n) {
+            MARK_BIT(t,4);
+            MARK_BIT(t->v1(),4);
+            MARK_BIT(t->v2(),4);
+            MARK_BIT(t->v3(),4);
+        }
+        FOREACHTRIANGLE(t, n) if(!IS_BIT(t,4)) {
+            MARK_BIT(t,5);
+            MARK_BIT(t->v1(),5);
+            MARK_BIT(t->v2(),5);
+            MARK_BIT(t->v3(),5);
+        }
+        shift.clear();
+        numNormals.clear();
+        FOREACHVERTEX(v, n) {
+            shift.insert(std::pair<Vertex*, Point>(v,Point()));
+            numNormals.insert(std::pair<Vertex*, int>(v,0));
+        }
         printf("iteration %d\n", iteration_counter);
-        FOREACHTRIANGLE(t, n) if(IS_BIT(t,2) && !IS_BIT(t->v1(),2) && !IS_BIT(t->v2(),2) && !IS_BIT(t->v3(),2)) UNMARK_BIT(t,2);
-        if(!this->moveVerticesInwards(center, origin, d, 1.5*d)) break;
+        // mark0 triangles of componenent2 (mark2) which are inside of component1 (mark1)
+        if(!this->markTrianglesInsideComponent(0, 5, 4)) {
+            // delete first shell (since we didn't change it we are only interested in the second)
+            FOREACHTRIANGLE(t, n) if(IS_BIT(t,4)) {
+                this->unmarkEverything();
+                this->removeShell(t);
+                this->eulerUpdate();
+                break;
+            }
+            break; // finished
+        }
+            ;
+//        this->removeSelectedTriangles();
+        FOREACHTRIANGLE(t, n) {
+            if(IS_BIT(t,0) && IS_BIT(t,5)) {
+                Point normal = t->getNormal();
+                v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
+                shift[v1] += normal; shift[v2] += normal; shift[v3] += normal;
+                numNormals[v1]++; numNormals[v2]++; numNormals[v3]++;
+            }
+            UNMARK_BIT(t,0);
+        }
+        FOREACHVERTEX(v, n) if(int num = numNormals[v]) *v += shift[v]/num;
+        FOREACHTRIANGLE(t, n) if(IS_BIT(t,5)) {
+            this->unmarkEverything();
+            tmptin = new ExtTriMesh((Triangle*)t);
+            tmptin->clean();
+            tmptin->checkAndRepair();
+            this->removeShell(t);
+            this->deselectTriangles();
+            T.joinTailList(&tmptin->T);
+            E.joinTailList(&tmptin->E);
+            V.joinTailList(&tmptin->V);
+            this->eulerUpdate();
+            this->checkAndRepair();
+            break;
+        }
     }
-//    this->clean(10, 3, 2);
     if(iteration_counter < max_iterations) return true;
     return false;
 }
 
+int ExtTriMesh::markTrianglesInsideComponent(short insideMarkBit, short componentMarkBit1, short componentMarkBit2) {
+    di_cell *c = new di_cell(this), *c2, *tmp;
+    Triangle *t;
+    Node *n;
+    List todo(c), cells, tmptl;
+    // keep only triangles of the two components
+    while(t = (Triangle*) c->triangles.popHead())
+        if(t->mask & (1<<componentMarkBit1 | 1<<componentMarkBit2))
+            tmptl.appendHead(t);
+    c->triangles.joinTailList(&tmptl);
+    int ncells = 0;
+    int ret = 0;
+    // get smallest cells containing at least both shells
+    while (c = (di_cell *)todo.popHead()) {
+        if (ncells > DI_MAX_NUMBER_OF_CELLS || c->triangles.numels() <= 10) cells.appendHead(c);
+        else {
+            ncells++;
+            JMesh::report_progress(NULL);
+            tmp = new di_cell(*c);
+            c2 = c->fork();
+            if (!c->containsBothShells(componentMarkBit1, componentMarkBit2) ||
+                !c2->containsBothShells(componentMarkBit1, componentMarkBit2)) {
+                delete(c);
+                delete(c2);
+                cells.appendHead(tmp);
+            } else {
+                todo.appendTail(c);
+                todo.appendTail(c2);
+                delete(tmp);
+            }
+        }
+    }
+    // if no intersections, then all triangles
+    int nintersections = this->selectIntersectingTriangles();
+    printf("number of intersections: %d\n", nintersections);
+    std::set<Vertex*> vertices;
+    short outsideMarkBit = 0;
+    // get first unused bit
+    short mask = 1<<componentMarkBit1 | 1<<componentMarkBit2 | 1<<insideMarkBit;
+    while(1<<outsideMarkBit & mask) outsideMarkBit++;
+
+    short decidedMask = 1<<insideMarkBit | 1<<outsideMarkBit;
+    while(c = (di_cell*) cells.popHead()) {
+        // get vertices of triangles in the cell
+        FOREACHVTTRIANGLE((&c->triangles), t, n) {
+            vertices.insert(t->v1());
+            vertices.insert(t->v2());
+            vertices.insert(t->v3());
+        }
+        // decide for each vertex whether inside or outside
+        for(std::set<Vertex*>::const_iterator i = vertices.begin(); i != vertices.end(); ++i) {
+            Vertex *v = *i, *w, *closest;
+            // search for yet undecided (unmarked) connected regions
+            if(!(v->mask & decidedMask)) {
+                // get closest vertex of the other component
+                double d, dmin = DBL_MAX;
+                FOREACHVTTRIANGLE((&c->triangles), t, n) if(IS_BIT(t,componentMarkBit2)) {
+                    w = t->v1();
+                    if(!IS_VISITED(w)) {
+                        MARK_VISIT(w);
+                        d = v->squaredDistance(w);
+                        if(d < dmin) { dmin = d; closest = w; }
+                    }
+                    w = t->v2();
+                    if(!IS_VISITED(w)) {
+                        MARK_VISIT(w);
+                        d = v->squaredDistance(w);
+                        if(d < dmin) { dmin = d; closest = w; }
+                    }
+                    w = t->v3();
+                    if(!IS_VISITED(w)) {
+                        MARK_VISIT(w);
+                        d = v->squaredDistance(w);
+                        if(d < dmin) { dmin = d; closest = w; }
+                    }
+                }
+                if(dmin == DBL_MAX) { /*v->printPoint(); */continue; }
+                FOREACHVERTEX(w, n) if(IS_VISITED(w)) UNMARK_VISIT(w);
+                // get the mean normal at the closest vertex
+                Point meanNormal;
+                FOREACHVTTRIANGLE(closest->VT(), t, n) meanNormal += t->getNormal();
+                // decide whether it is inside or outside (using the mean normal plane)
+                bool isInside = meanNormal.squaredLength() ? meanNormal*(*v - *closest) < 0 : false;
+                // spread the decision to all connected triangles, stop at selected triangles (=intersections)
+                todo.appendHead(v->e0->t1);
+                short markbit = isInside ? insideMarkBit : outsideMarkBit;
+                while(t = (Triangle*) todo.popHead()) {
+                    MARK_BIT(t, markbit);
+                    if(isInside) ret++;
+                    MARK_BIT(t->v1(), markbit); MARK_BIT(t->v2(), markbit); MARK_BIT(t->v3(), markbit);
+                    Triangle *t1 = t->t1(), *t2 = t->t2(), *t3 = t->t3();
+                    // stop at selected triangles (== markbit 0 == intersections)
+                    if(t1 && !(t1->mask & (decidedMask | 1<<0))) todo.appendHead(t1);
+                    if(t2 && !(t2->mask & (decidedMask | 1<<0))) todo.appendHead(t2);
+                    if(t3 && !(t3->mask & (decidedMask | 1<<0))) todo.appendHead(t3);
+                }
+            }
+        }
+        vertices.clear();
+    }
+    return ret;
+}

@@ -68,7 +68,12 @@ class ExtTriMesh : public Triangulation
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
  double mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner);
  int moveVerticesInwards(Point &componentCenter, std::map<Vertex*,Point> &origin, double stepsize = 1.0, double distance = 1.0);
+ //! Iteratively moves overlapping parts of the second (outer) component outwards in the direction of the normals.
+ //! Intersections are removed in each iteration. At the end the first component is removed.
  bool decoupleSecondFromFirstComponent(double dd = 1.0, unsigned max_iterations = 10);
+ //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
+ int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 1, short componentMarkBit2 = 2);
+
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
  //! Warning: The normals must be directed outwards of each component!
@@ -96,6 +101,7 @@ class ExtTriMesh : public Triangulation
  void mc_resample(int, int =0, int =0);
  int epsilonSample(double, int =0);
 
+ //! Note: applies unmark bit 0,1,3!
  int  selectIntersectingTriangles(UINT16 tri_per_cell=100);
 
  void tagPlanarRegionsBoundaries(double max_distance);

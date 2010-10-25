@@ -115,11 +115,12 @@ void usage()
  printf("  An optionally passed <file2> is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
- printf(" -n <n>              Only the <n> biggest input components are kept.\n");
+ printf(" -ns <n>             Only the <n> biggest shells are kept.\n");
  printf(" -j                  Join 2 biggest components if they overlap, remove the rest.\n");
 // printf(" -j <d>              Join components closer than <d> or overlapping.\n");
  printf(" -jc                 Join the closest pair of components.\n");
  printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
+ printf("   -nv <n>           Constrain number of vertices to <n> (only with -u)\n");
  printf(" --decouple          Treat 1st file as inner, 2nd file as outer component.\n");
  printf("                     Resolve intersections by moving outer triangles outward.\n");
  printf(" --no-clean          Don't clean.\n");
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
  bool joinOverlappingComponents = false;
 // float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
- int uniformRemeshSteps = 0;
+ int uniformRemeshSteps = 0, numberOfVertices = 0;
  bool haveDecouple = false;
  bool clean = true;
  bool save_vrml = false;
@@ -220,6 +221,11 @@ int main(int argc, char *argv[])
           JMesh::error("# uniform remesh steps must be >= 1.\n");
       i++;
   }
+  else if (!strcmp(argv[i], "-nv")) {
+      if (i>=argc-1 || (numberOfVertices = atoi(argv[i+1]))<1)
+          JMesh::error("# of vertices must be >= 0.\n");
+      i++;
+  }
   else if (!strcmp(argv[i], "--decouple")) haveDecouple = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
@@ -262,13 +268,13 @@ int main(int argc, char *argv[])
 
  if (uniformRemeshSteps) {
      printf("Uniform remeshing ...\n");
-     tin.uniformRemesh(uniformRemeshSteps, 0, tin.E.numels());
- }
+     tin.uniformRemesh(uniformRemeshSteps, numberOfVertices, tin.E.numels());
+ } else if(numberOfVertices) { JMesh::warning("-nv works only together with -u."); }
 
  if (haveDecouple) {
      printf("Decoupling first component from second one.\n");
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleSecondFromFirstComponent(1, 150);
+     else tin.decoupleSecondFromFirstComponent(1, 20);
  }
 
  // Run geometry correction
