@@ -118,7 +118,7 @@ int ExtTriMesh::swapAndCollapse()
 
 bool ExtTriMesh::cleanDegenerateTriangles(int max_iters, int num_to_keep)
 {
- int n, iter_count = 0;
+ int n, iter_count = 0, iter_count2 = 0;
 
  printf("Removing degeneracies...\n");
  while ((++iter_count) <= max_iters && swapAndCollapse())
@@ -127,6 +127,17 @@ bool ExtTriMesh::cleanDegenerateTriangles(int max_iters, int num_to_keep)
   removeSelectedTriangles();
   removeSmallestComponents(num_to_keep);
   JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+  if(removeOverlappingTriangles()) {
+      JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+      while((++iter_count2) <= max_iters && removeOverlappingTriangles()) {
+          // remove and fill didn't help => region growing
+          JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+          for(n=1; n<iter_count2; n++) growSelection();
+          this->removeSelectedTriangles();
+          JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+          this->deselectTriangles();
+      }
+  }
   asciiAlign();
  }
  if (iter_count > max_iters) return false;
@@ -311,6 +322,7 @@ bool ExtTriMesh::clean(int max_iters, int inner_loops, int number_components_to_
  for (int n=0; n<max_iters; n++)
  {
   printf("********* ITERATION %d *********\n",n);
+  this->removeOverlappingTriangles();
   nd=cleanDegenerateTriangles(inner_loops, number_components_to_keep);
   deselectTriangles(); invertSelection();
   ni=removeSelfIntersections2(inner_loops, number_components_to_keep);

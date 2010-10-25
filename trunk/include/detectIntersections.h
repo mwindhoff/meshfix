@@ -48,6 +48,7 @@ class di_cell
  List triangles;
 
  di_cell() {}
+ di_cell(const di_cell &toCopy) { mp = toCopy.mp; Mp = toCopy.Mp; triangles.appendList(&toCopy.triangles); }
  di_cell(Triangulation *tin, bool useAll=1);
 
  inline bool is_Point_in_cell(Point *p)
