@@ -121,8 +121,10 @@ void usage()
  printf(" -jc                 Join the closest pair of components.\n");
  printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
  printf("   -nv <n>           Constrain number of vertices to <n> (only with -u)\n");
- printf(" --decouple          Treat 1st file as inner, 2nd file as outer component.\n");
+ printf(" --decouple <dmin>   Treat 1st file as inner, 2nd file as outer component.\n");
  printf("                     Resolve intersections by moving outer triangles outward.\n");
+ printf("                     Constrain the distance between the components > dmin.\n");
+ printf(" -d <dmin>           Synonym for --decouple <dmin>.\n");
  printf(" --no-clean          Don't clean.\n");
  printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
  printf(" -s                  Result is saved in STL     format instead of OFF.\n");
@@ -174,7 +176,7 @@ int main(int argc, char *argv[])
 // float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
  int uniformRemeshSteps = 0, numberOfVertices = 0;
- bool haveDecouple = false;
+ double decoupleMinDist = -1;
  bool clean = true;
  bool save_vrml = false;
  bool save_stl = false;
@@ -226,7 +228,15 @@ int main(int argc, char *argv[])
           JMesh::error("# of vertices must be >= 0.\n");
       i++;
   }
-  else if (!strcmp(argv[i], "--decouple")) haveDecouple = true;
+  else if (!strcmp(argv[i], "--decouple") || !strcmp(argv[i], "-d")) {
+      if (i<argc-1) {
+          decoupleMinDist = atof(argv[i+1]);
+          if (decoupleMinDist < 0)
+              JMesh::error("decoupleMinDist must be >= 0.\n");
+          else
+              i++;
+      }
+  }
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
   else if (!strcmp(argv[i], "-o")) {
@@ -271,10 +281,10 @@ int main(int argc, char *argv[])
      tin.uniformRemesh(uniformRemeshSteps, numberOfVertices, tin.E.numels());
  } else if(numberOfVertices) { JMesh::warning("-nv works only together with -u."); }
 
- if (haveDecouple) {
-     printf("Decoupling first component from second one.\n");
+ if (decoupleMinDist >= 0) {
+     printf("Decoupling first component from second one using %g as minimum allowed distance.\n", decoupleMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleSecondFromFirstComponent(1, 20);
+     else tin.decoupleSecondFromFirstComponent(decoupleMinDist, 20);
  }
 
  // Run geometry correction

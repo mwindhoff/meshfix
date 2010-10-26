@@ -72,7 +72,9 @@ class ExtTriMesh : public Triangulation
  //! Intersections are removed in each iteration. At the end the first component is removed.
  bool decoupleSecondFromFirstComponent(double dd = 1.0, unsigned max_iterations = 10);
  //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
- int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 1, short componentMarkBit2 = 2);
+ int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
+ //! Marks triangles of component1 that are closer than d to any triangle of component2.
+ int markTrianglesCloseToComponent(double d = 1.0, short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
 
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
