@@ -394,6 +394,13 @@ class Triangulation
  //! The newly created elements form a new selection.
  void append(Triangulation *t);
 
+ //! Joins the element lists of the triangulation src to the tail of the current lists.
+ void joinTailTriangulation(Triangulation *src);
+
+ //! Convenience function to extract the shell connected to the triangle t (while removing it from the current mesh).
+ Triangulation *extractShell(Triangle *t);
+
+
  /////////////////////////////////////////////////////////////////////////////
  //
  // Region manipulation (Implemented in "MESH_STRUCTURE/tin.cpp")

@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
  if (decoupleMinDist >= 0) {
      printf("Decoupling first component from second one using %g as minimum allowed distance.\n", decoupleMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleSecondFromFirstComponent(decoupleMinDist, 20);
+     else tin.decoupleSecondFromFirstComponent(decoupleMinDist, 100);
  }
 
  // Run geometry correction

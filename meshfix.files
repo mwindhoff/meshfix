@@ -68,3 +68,4 @@ src/simplification.cpp
 src/uniform.cpp
 src/epsilonSampling.cpp
 src/cleaning.cpp
+test/sphere_decouple_test.sh

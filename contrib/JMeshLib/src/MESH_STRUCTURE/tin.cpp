@@ -956,6 +956,19 @@ void Triangulation::append(Triangulation *src)
  d_boundaries = d_handles = d_shells = 1;
 }
 
+void Triangulation::joinTailTriangulation(Triangulation *src) {
+    V.joinTailList(&src->V);
+    E.joinTailList(&src->E);
+    T.joinTailList(&src->T);
+    d_boundaries = d_handles = d_shells = 1;
+}
+
+Triangulation *Triangulation::extractShell(Triangle *t) {
+    Triangulation *tin = new Triangulation((Triangle*) t);
+    this->removeShell(t);
+    return tin;
+}
+
 //////////////////////////////////////////////////////////////////
 //                                                              //
 //    R E G I O N   M A N I P U L A T I O N                     //
