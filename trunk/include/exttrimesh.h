@@ -70,11 +70,13 @@ class ExtTriMesh : public Triangulation
  int moveVerticesInwards(Point &componentCenter, std::map<Vertex*,Point> &origin, double stepsize = 1.0, double distance = 1.0);
  //! Iteratively moves overlapping parts of the second (outer) component outwards in the direction of the normals.
  //! Intersections are removed in each iteration. At the end the first component is removed.
- bool decoupleSecondFromFirstComponent(double dd = 1.0, unsigned max_iterations = 10);
+ bool decoupleSecondFromFirstComponent(double minAllowedDistance = 1.0, unsigned max_iterations = 10);
  //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
  int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
- //! Marks triangles of component1 that are closer than d to any triangle of component2.
- int markTrianglesCloseToComponent(double d = 1.0, short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
+ //! Moves vertices of component1 that are closer than d to any triangle of component2.
+ int moveTooCloseVerticesOutwards(double minAllowedDistance = 1.0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
+ //! Dilates the surface by d into the direction of the mean normal at each vertex
+ void dilate(double d = 1.0);
 
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
