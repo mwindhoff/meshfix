@@ -6,7 +6,6 @@ include_directories(
     /usr/include/superlu
     contrib/JMeshLib/include
     contrib/OpenNL3.2.1/src
-    contrib/octree
     contrib/jrs_predicates
 )
 link_directories(
@@ -20,7 +19,6 @@ set(meshfix_src
     src/holeFilling.cpp
     src/sparseLSystem.cpp
     src/mwExtensions.cpp
-    src/triangleoctree.cpp
     src/smoothing.cpp
     contrib/OpenNL3.2.1/src/nl_single_file.c
     src/epsilonSampling.cpp

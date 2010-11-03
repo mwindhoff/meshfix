@@ -29,9 +29,6 @@
 #define _EXTTRIMESH_H
 
 #include "jmesh.h"
-#include "binTree.h"
-#include "triangleoctree.h"
-#include "component.h"
 #include <set>
 #include <map>
 using std::set;
@@ -39,25 +36,22 @@ using std::set;
 class ExtTriMesh : public Triangulation
 {
  public:
- TriangleOctree *ot;
  double epsilon_angle;
  // Constructors
- ExtTriMesh() : Triangulation() { ot = NULL; epsilon_angle = 0; }
- ExtTriMesh(const char *s) : Triangulation(s) { ot = NULL; epsilon_angle = 0; }
- ExtTriMesh(const Triangulation *t) : Triangulation(t) { ot = NULL; epsilon_angle = 0; }
- ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) { ot = NULL; epsilon_angle = 0; }
+ ExtTriMesh() : Triangulation() { epsilon_angle = 0; }
+ ExtTriMesh(const char *s) : Triangulation(s) { epsilon_angle = 0; }
+ ExtTriMesh(const Triangulation *t) : Triangulation(t) { epsilon_angle = 0; }
+ ExtTriMesh(const Triangle *t, const bool keep_ref =false) : Triangulation(t, keep_ref) { epsilon_angle = 0; }
 
- Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
- Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.C")
- int     fillSmallBoundaries(int, bool =0, bool =0);   // (in "ALGORITHMS/holeFilling.C")
- int     TriangulateHole(Edge *);		       // (in "ALGORITHMS/holeFilling.C")
- void    FillHole(Edge *, bool =0);		       // (in "ALGORITHMS/holeFilling.C")
- int refineSelectedHolePatches(Triangle * =NULL);      // (in "ALGORITHMS/holeFilling.C")
- void fairSelection(Triangle * =NULL);		       // (in "ALGORITHMS/holeFilling.C")
+ Edge	*joinBoundaryLoops(bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.cpp")
+ Edge	*joinBoundaryLoops(Vertex *, Vertex *, bool =0, bool =1, bool =1); // (in "ALGORITHMS/holeFilling.cpp")
+ int     fillSmallBoundaries(int, bool =0, bool =0);   // (in "ALGORITHMS/holeFilling.cpp")
+ int     TriangulateHole(Edge *);		       // (in "ALGORITHMS/holeFilling.cpp")
+ void    FillHole(Edge *, bool =0);		       // (in "ALGORITHMS/holeFilling.cpp")
+ int refineSelectedHolePatches(Triangle * =NULL);      // (in "ALGORITHMS/holeFilling.cpp")
+ void fairSelection(Triangle * =NULL);		       // (in "ALGORITHMS/holeFilling.cpp")
 
  // Mirko's functions
- void initializeOctree();
- int  joinCloseOrOverlappingComponents( double minAllowedDistance = 1.0 );
  int  joinOverlappingComponentPair();
  int  joinOverlappingComponentPair2();
  // returns the number of joined boundaries
@@ -78,10 +72,6 @@ class ExtTriMesh : public Triangulation
  int moveTooCloseVerticesOutwards(double minAllowedDistance = 1.0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
  //! Dilates the surface by d into the direction of the mean normal at each vertex
  void dilate(double d = 1.0);
- //! Returns true, if the Point p is inside the component. The component must be a
- //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
- //! Warning: The normals must be directed outwards of each component!
- bool isPointInComponent(Vertex *v, ComponentStruct *c);
 
  // Cleaning functions (src/cleaning.cpp)
  void asciiAlign();
