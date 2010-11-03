@@ -109,32 +109,32 @@ bool joinClosestComponents(ExtTriMesh *tin, bool justconnect = false, bool refin
 
 void usage()
 {
- printf("%s v%s - by %s.\n=====================================================\n", JMesh::app_name, JMesh::app_version, JMesh::app_authors);
+ printf("%s v%s - by %s.\n================================================================================\n", JMesh::app_name, JMesh::app_version, JMesh::app_authors);
  printf("USAGE: meshfix <file1> [<file2>] [OPTIONS]\n");
- printf("  Processes <meshfile1> and saves the result to <file1>_fixed.off.\n");
- printf("  An optionally passed <file2> is merged with the first one.\n");
+ printf("  Processes file1 and saves the result to <file1>_fixed.off.\n");
+ printf("  An optionally passed file2 is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
- printf(" -ns <n>             Only the <n> biggest shells are kept.\n");
- printf(" -j                  Join 2 biggest components if they overlap, remove the rest.\n");
-// printf(" -j <d>              Join components closer than <d> or overlapping.\n");
- printf(" -jc                 Join the closest pair of components.\n");
- printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
- printf("   -nv <n>           Constrain number of vertices to <n> (only with -u)\n");
  printf(" --decouple <dmin>   Treat 1st file as inner, 2nd file as outer component.\n");
  printf("                     Resolve intersections by moving outer triangles outward.\n");
  printf("                     Constrain the distance between the components > dmin.\n");
- printf(" -d <dmin>           Synonym for --decouple <dmin>.\n");
- printf(" --no-clean          Don't clean.\n");
- printf(" -w                  Result is saved in VRML1.0 format instead of OFF.\n");
- printf(" -s                  Result is saved in STL     format instead of OFF.\n");
+ printf(" --dilate <d>        Dilate the surface by d. d < 0 means shrinking.\n");
+ printf(" -j                  Join 2 biggest components if they overlap, remove the rest.\n");
+ printf(" -jc                 Join the closest pair of components.\n");
+ printf(" -h, --help          Print this help and exit.\n");
+ printf(" -ns <n>             Only the n biggest shells are kept.\n");
  printf(" -o <output>         Set the output filename (without extension).\n");
- printf("Accepted input formats are OFF, PLY and STL.\n  Other formats are supported only partially.\n");
+ printf(" -q                  Quiet mode, don't write much to stdout.\n");
+ printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
+ printf("   -nv <n>           Constrain number of vertices to n (only with -u)\n");
+ printf(" --no-clean          Don't clean.\n");
+ printf(" --smooth <n>        Apply n laplacian smoothing steps.\n");
+ printf(" -s, --stl           Result is saved in STL     format instead of OFF.\n");
+ printf(" -w, --wrl           Result is saved in VRML1.0 format instead of OFF.\n");
+ printf("Accepted input formats are OFF, PLY and STL.\nOther formats are supported only partially.\n");
  printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
- printf("\n   M. Attene.\n   A lightweight approach to repairing digitized polygon meshes.\n   The Visual Computer, 2010. (c) Springer.\n");
- printf("\nHIT ENTER TO EXIT.\n");
- getchar();
+ printf("M. Attene - A lightweight approach to repairing digitized polygon meshes.\nThe Visual Computer, 2010. (c) Springer.\n");
  exit(0);
 }
 
@@ -150,14 +150,13 @@ char *createFilename(const char *iname, const char *subext, const char *newexten
 
 int main(int argc, char *argv[])
 {
- char subext[128]="_fixed";
  JMesh::init();
  JMesh::app_name = "MeshFix";
  JMesh::app_version = "1.1-alpha";
  JMesh::app_year = "2010";
  JMesh::app_authors = "Marco Attene, Mirko Windhoff";
  JMesh::app_maillist = "attene@ge.imati.cnr.it, mirko.windhoff@tuebingen.mpg.de";
-
+ JMesh::global_quiet = false;
  ExtTriMesh tin;
 
 #ifdef DISCLAIMER
@@ -176,12 +175,15 @@ int main(int argc, char *argv[])
 // float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
  int uniformRemeshSteps = 0, numberOfVertices = 0;
+ int smoothingSteps = 0;
  double decoupleMinDist = -1;
+ double dilateDist = 0;
  bool clean = true;
  bool save_vrml = false;
  bool save_stl = false;
  bool haveOutputFile = false;
  const char *outputFile;
+ if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) usage();
  for (int i=2; i<argc; i++)
  {
   if (!strcmp(argv[i], "-a"))
@@ -197,7 +199,8 @@ int main(int argc, char *argv[])
     i++;
    }
   }
-  else if (!strcmp(argv[i], "-n")) {
+  else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) usage();
+  else if (!strcmp(argv[i], "-ns")) {
       if (i<argc-1) {
           numberComponentsToKeep = atoi(argv[i+1]);
           if (numberComponentsToKeep < 1)
@@ -206,18 +209,9 @@ int main(int argc, char *argv[])
               i++;
       }
   }
-  else if (!strcmp(argv[i], "-w")) save_vrml = true;
-  else if (!strcmp(argv[i], "-s")) save_stl = true;
-  else if (!strcmp(argv[i], "-j")) joinOverlappingComponents = true; /*{
-      if (i<argc-1) {
-          minAllowedDistance = atof(argv[i+1]);
-          joinOverlappingComponents = true;
-          if (minAllowedDistance < 0)
-              JMesh::error("minAllowedDistance must be >= 0.\n");
-          else
-              i++;
-      }
-  }*/
+  else if (!strcmp(argv[i], "-w") || !strcmp(argv[i], "--wrl")) save_vrml = true;
+  else if (!strcmp(argv[i], "-s") || !strcmp(argv[i], "--stl")) save_stl = true;
+  else if (!strcmp(argv[i], "-j")) joinOverlappingComponents = true;
   else if (!strcmp(argv[i], "-u")) {
       if (i>=argc-1 || (uniformRemeshSteps = atoi(argv[i+1]))<1)
           JMesh::error("# uniform remesh steps must be >= 1.\n");
@@ -228,13 +222,24 @@ int main(int argc, char *argv[])
           JMesh::error("# of vertices must be >= 0.\n");
       i++;
   }
-  else if (!strcmp(argv[i], "--decouple") || !strcmp(argv[i], "-d")) {
+  else if (!strcmp(argv[i], "--smooth")) {
+      if (i>=argc-1 || (smoothingSteps = atoi(argv[i+1]))<1)
+          JMesh::error("# smoothing steps must be >= 1.\n");
+      i++;
+  }
+  else if (!strcmp(argv[i], "--decouple")) {
       if (i<argc-1) {
           decoupleMinDist = atof(argv[i+1]);
           if (decoupleMinDist < 0)
               JMesh::error("decoupleMinDist must be >= 0.\n");
           else
               i++;
+      }
+  }
+  else if (!strcmp(argv[i], "--dilate")) {
+      if (i<argc-1) {
+          dilateDist = atof(argv[i+1]);
+          i++;
       }
   }
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
@@ -246,6 +251,7 @@ int main(int argc, char *argv[])
           i++;
       }
   }
+  else if (!strcmp(argv[i], "-q")) JMesh::global_quiet = true;
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
  }
 
@@ -264,8 +270,10 @@ int main(int argc, char *argv[])
 
  if (joinOverlappingComponents) {
      tin.removeSmallestComponents(2);
-     tin.joinOverlappingComponentPair();
-//     tin.joinCloseOrOverlappingComponents( minAllowedDistance );
+     if(!tin.joinOverlappingComponentPair2()) {
+         if(!joinClosestComponents(&tin, false, true, false))
+             JMesh::warning("Joining didn't succeed.\n");
+     }
  }
  if (haveJoinClosestComponents)
  {
@@ -281,24 +289,33 @@ int main(int argc, char *argv[])
      tin.uniformRemesh(uniformRemeshSteps, numberOfVertices, tin.E.numels());
  } else if(numberOfVertices) { JMesh::warning("-nv works only together with -u."); }
 
+ if (dilateDist != 0.0) {
+     printf("Dilating by %g.\n", dilateDist);
+     tin.dilate(dilateDist);
+ }
+
  if (decoupleMinDist >= 0) {
      printf("Decoupling first component from second one using %g as minimum allowed distance.\n", decoupleMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
      else tin.decoupleSecondFromFirstComponent(decoupleMinDist, 100);
  }
 
+ if(smoothingSteps) {
+     printf("Smoothing %d steps.\n", smoothingSteps);
+     tin.laplacianSmooth(smoothingSteps, 1);
+ }
  // Run geometry correction
  if (clean) {
      printf("Cleaning intersections, degeneracies ...\n");
-     if (tin.boundaries() || !tin.clean(10, 3, numberComponentsToKeep)) {
+     if (!tin.clean(20, 3, numberComponentsToKeep)) {
       fprintf(stderr,"MeshFix failed!\n");
-      fprintf(stderr,"Please try manually using ReMESH v1.2 or later (http://remesh.sourceforge.net).\n");
+      fprintf(stderr,"Please try manually using ReMESH: http://remesh.sourceforge.net\n");
       FILE *fp = fopen("meshfix_log.txt","a");
-      fprintf(fp,"MeshFix failed on %s\n",input_filename);
+      fprintf(fp,"MeshFix failed on %s\n", input_filename);
       fclose(fp);
      }
  }
- char *fname = createFilename( haveOutputFile ? outputFile : argv[1], subext, (save_vrml? ".wrl" : (save_stl? ".stl":".off")));
+ char *fname = createFilename( haveOutputFile ? outputFile : argv[1], haveOutputFile ? "": "_fixed", (save_vrml? ".wrl" : (save_stl? ".stl":".off")));
  printf("Saving output mesh to '%s'\n",fname);
  if (save_vrml)
      tin.saveVRML1(fname);

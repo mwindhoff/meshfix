@@ -136,8 +136,8 @@ int ExtTriMesh::fillSmallBoundaries(int nbe, bool refine_patches, bool smooth_pa
     MARK_VISIT2(w);
     grd++;
     w = w->nextOnBoundary();
-   } while (w != v);
-   if (grd <= nbe) bdrs.appendHead(w->nextBoundaryEdge());
+   } while (w && w != v);
+   if (w && grd <= nbe) bdrs.appendHead(w->nextBoundaryEdge());
   }
  }
  FOREACHVERTEX(v, n) {UNMARK_VISIT(v); UNMARK_VISIT2(v);}
@@ -499,13 +499,17 @@ Edge *ExtTriMesh::joinBoundaryLoops(Vertex *gv, Vertex *gw, bool justconnect, bo
   c2 = fabs((pl2-gwe->length())*tl1-pl1*tl2);
   if (c1<c2)
   {
-   t=EulerEdgeTriangle(e, gve); MARK_VISIT(t);
+   t=EulerEdgeTriangle(e, gve);
+   if(!t) { JMesh::warning("joinBoundaryLoops not successful\n"); break; }
+   MARK_VISIT(t);
    pl1 -= gve->length();
    e = t->nextEdge(gve);
   }
   else
   {
-   t=EulerEdgeTriangle(gwe, e); MARK_VISIT(t);
+   t=EulerEdgeTriangle(gwe, e);
+   if(!t) { JMesh::warning("joinBoundaryLoops not successful\n"); break; }
+   MARK_VISIT(t);
    pl2 -= gwe->length();
    e = t->prevEdge(gwe);
   }

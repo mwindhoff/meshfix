@@ -59,6 +59,7 @@ class ExtTriMesh : public Triangulation
  void initializeOctree();
  int  joinCloseOrOverlappingComponents( double minAllowedDistance = 1.0 );
  int  joinOverlappingComponentPair();
+ int  joinOverlappingComponentPair2();
  // returns the number of joined boundaries
  int joinComponentsCloseBoundaries(List *nl, List *ml, double maxDistanceToJoin);
  bool loopsHaveAllVerticesCloserThanDistance(List *loop, List *loop2, const double &distance);
@@ -77,11 +78,11 @@ class ExtTriMesh : public Triangulation
  int moveTooCloseVerticesOutwards(double minAllowedDistance = 1.0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
  //! Dilates the surface by d into the direction of the mean normal at each vertex
  void dilate(double d = 1.0);
-
  //! Returns true, if the Point p is inside the component. The component must be a
  //! closed surface. Searches for the closest vertex and uses the orientation of its triangles normal.
  //! Warning: The normals must be directed outwards of each component!
  bool isPointInComponent(Vertex *v, ComponentStruct *c);
+
  // Cleaning functions (src/cleaning.cpp)
  void asciiAlign();
  int swapAndCollapse();

@@ -54,6 +54,7 @@ class JMesh
  static const char *app_url;
  static const char *app_maillist;
  static bool quiet;
+ static bool global_quiet;
 
  static void init(double = 0.0001, FILE * =NULL, void (*)(const char *, int) = NULL);
 
