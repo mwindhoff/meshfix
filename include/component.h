@@ -45,21 +45,6 @@ public:
         this->unmarkBit(b);
         vertices = boundaries = hierarchyTriangles = NULL;
     }
-    void initializeRadiiAndCenter() {
-        Triangle *t; Node *n;
-        inSphereRadius2 = DBL_MAX;
-        outSphereRadius2 = 0;
-        center = Point();
-        FOREACHVTTRIANGLE(triangles, t, n) center += t->getCenter();
-        center /= triangles->numels();
-        FOREACHVTTRIANGLE(triangles, t, n) {
-            double d1 = t->v1()->squaredDistance(&center);
-            double d2 = t->v2()->squaredDistance(&center);
-            double d3 = t->v3()->squaredDistance(&center);
-            inSphereRadius2 = MIN(inSphereRadius2, MIN(d1, MIN(d2, d3)));
-            outSphereRadius2 = MAX(outSphereRadius2, MAX(d1, MAX(d2, d3)));
-        }
-    }
     void initializeBoundaries() {
         vertices = getVertices();
         boundaries = getBoundaryLoops();
