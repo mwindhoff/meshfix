@@ -65,7 +65,7 @@ class ExtTriMesh : public Triangulation
  int moveVerticesInwards(Point &componentCenter, std::map<Vertex*,Point> &origin, double stepsize = 1.0, double distance = 1.0);
  //! Iteratively moves overlapping parts of the second (outer) component outwards in the direction of the normals.
  //! Intersections are removed in each iteration. At the end the first component is removed.
- bool decoupleSecondFromFirstComponent(double minAllowedDistance = 1.0, unsigned max_iterations = 10);
+ bool decoupleFirstFromSecondComponent(double minAllowedDistance = 1.0, unsigned max_iterations = 10);
  //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
  int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
  //! Moves vertices of component1 that are closer than d to any triangle of component2.
@@ -75,13 +75,15 @@ class ExtTriMesh : public Triangulation
 
  // Cleaning functions (src/cleaning.cpp)
  void asciiAlign();
- int swapAndCollapse();
+ int  swapAndCollapse();
  bool cleanDegenerateTriangles(int max_iters = 10, int num_to_keep = 1);
  bool removeSelfIntersections(int max_iters, int number_components_to_keep = 1);
  bool removeSelfIntersections2(int max_iterations, int number_components_to_keep = 1);
  bool isDegeneracyFree();
  void selectTrianglesInCubes();
  bool clean(int max_iters = 10, int inner_loops = 3, int number_components_to_keep = 1);
+ //! Iteratively increases the radius of the handles to select, removes the selected triangles and fills the holes
+ bool removeHandles();
  // Misc Algorithms (Implemented in "ALGORITHMS/*.C")
 
  void loopSubdivision(int);

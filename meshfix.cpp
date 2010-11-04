@@ -115,7 +115,7 @@ void usage()
  printf("  An optionally passed file2 is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
- printf(" --decouple <dmin>   Treat 1st file as inner, 2nd file as outer component.\n");
+ printf(" --decouple <dmin>   Treat 1st file as outer, 2nd file as inner component.\n");
  printf("                     Resolve intersections by moving outer triangles outward.\n");
  printf("                     Constrain the distance between the components > dmin.\n");
  printf(" --dilate <d>        Dilate the surface by d. d < 0 means shrinking.\n");
@@ -125,6 +125,7 @@ void usage()
  printf(" -ns <n>             Only the n biggest shells are kept.\n");
  printf(" -o <output>         Set the output filename (without extension).\n");
  printf(" -q                  Quiet mode, don't write much to stdout.\n");
+ printf(" --remove-handles    Remove all handles of the mesh.\n");
  printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
  printf("   -nv <n>           Constrain number of vertices to n (only with -u)\n");
  printf(" --no-clean          Don't clean.\n");
@@ -156,7 +157,6 @@ int main(int argc, char *argv[])
  JMesh::app_year = "2010";
  JMesh::app_authors = "Marco Attene, Mirko Windhoff";
  JMesh::app_maillist = "attene@ge.imati.cnr.it, mirko.windhoff@tuebingen.mpg.de";
- JMesh::global_quiet = false;
  ExtTriMesh tin;
 
 #ifdef DISCLAIMER
@@ -179,6 +179,7 @@ int main(int argc, char *argv[])
  double decoupleMinDist = -1;
  double dilateDist = 0;
  bool clean = true;
+ bool removeHandles = false;
  bool save_vrml = false;
  bool save_stl = false;
  bool haveOutputFile = false;
@@ -242,6 +243,7 @@ int main(int argc, char *argv[])
           i++;
       }
   }
+  else if (!strcmp(argv[i], "--remove-handles")) removeHandles = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
   else if (!strcmp(argv[i], "-o")) {
@@ -251,7 +253,7 @@ int main(int argc, char *argv[])
           i++;
       }
   }
-  else if (!strcmp(argv[i], "-q")) JMesh::global_quiet = true;
+  else if (!strcmp(argv[i], "-q")) JMesh::quiet = true;
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
  }
 
@@ -284,6 +286,14 @@ int main(int argc, char *argv[])
   tin.deselectTriangles();
  }
 
+ if (removeHandles) {
+     printf("Removing all handles ...\n");
+     if(tin.shells() > 1)
+         JMesh::warning("Remove handles works only on single component meshes. Keeping only biggest shell.\n");
+     if(!tin.removeHandles()) JMesh::warning("Remove handles didn't succeed.\n");
+ }
+
+
  if (uniformRemeshSteps) {
      printf("Uniform remeshing ...\n");
      tin.uniformRemesh(uniformRemeshSteps, numberOfVertices, tin.E.numels());
@@ -297,7 +307,7 @@ int main(int argc, char *argv[])
  if (decoupleMinDist >= 0) {
      printf("Decoupling first component from second one using %g as minimum allowed distance.\n", decoupleMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleSecondFromFirstComponent(decoupleMinDist, 100);
+     else tin.decoupleFirstFromSecondComponent(decoupleMinDist, 100);
  }
 
  if(smoothingSteps) {
