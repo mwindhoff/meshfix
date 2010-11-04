@@ -10,23 +10,18 @@ public:
     List *triangles;
     List *vertices;
     List *boundaries;
-    List *hierarchyTriangles;
-    Point center;
-    double inSphereRadius2;
-    double outSphereRadius2;
     // component = triangles of list
     ComponentStruct() {
-        triangles = vertices = boundaries = hierarchyTriangles = NULL;
+        triangles = vertices = boundaries = NULL;
     }
     void clear() {
         if(triangles) triangles->removeNodes();
         if(vertices) vertices->removeNodes();
         if(boundaries) while(List *l = (List*) boundaries->popHead()) delete(l);
-        if(hierarchyTriangles) hierarchyTriangles->removeNodes();
     }
     ComponentStruct(List* l) {
         this->triangles = new List(l);
-        vertices = boundaries = hierarchyTriangles = NULL;
+        vertices = boundaries = NULL;
     }
     // component = triangles connected to t
     ComponentStruct(Triangle *t, unsigned b = 2) {
@@ -43,7 +38,7 @@ public:
             if (t3 != NULL && !IS_BIT(t3,b)) {MARK_BIT(t3,b); todo.appendHead(t3);}
         }
         this->unmarkBit(b);
-        vertices = boundaries = hierarchyTriangles = NULL;
+        vertices = boundaries = NULL;
     }
     void initializeBoundaries() {
         vertices = getVertices();

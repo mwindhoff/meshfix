@@ -87,7 +87,7 @@ int ExtTriMesh::joinOverlappingComponentPair2() {
     FOREACHTRIANGLE(t, n) if(!IS_BIT(t,4)) break;
     ComponentStruct c2(t);
 
-    int ret = this->joinComponentsCloseBoundaries(c1.triangles, c2.triangles, 3);
+    int ret = this->joinComponentsCloseBoundaries(c1.triangles, c2.triangles, 10);
     if(!ret) {
         this->selectBoundaryTriangles();
         this->removeSelectedTriangles();
@@ -115,33 +115,39 @@ int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double joinDis
     while ( loop1 = (List*) cn.boundaries->popHead() ) {
         List *tmp2 = new List();
         Vertex *bv, *bw;
+        bool joined = false;
         while (loop2 = (List*) cm.boundaries->popHead()) {
             if(loopsHaveAllVerticesCloserThanDistance(loop1, loop2, joinDistance)
                 && closestPair(loop1, loop2, &bv, &bw)
-                && joinBoundaryLoops(bv, bw, false, true, false)) {
+                && joinBoundaryLoops(bv, bw, true, false, false)) {
                 ret++;
-                loop2->removeNodes();
+                joined = true;
+                delete(loop2);
                 break;
             } else tmp2->appendHead(loop2); // retry this boundary later
         }
-        tmp1->appendHead(loop1);
+        if(!joined) tmp1->appendHead(loop1);
         cm.boundaries->joinTailList(tmp2); // leave boundaries that had no partner
+        delete(tmp2);
     }
     // now join all other boundaries
     while ( loop1 = (List*) tmp1->popHead() ) {
         Vertex *bv, *bw;
         while (loop2 = (List*) cm.boundaries->popHead()) {
             if( closestPair(loop1, loop2, &bv, &bw)
-                && joinBoundaryLoops(bv, bw, false, true, true)) {
+                && joinBoundaryLoops(bv, bw, false, false, false)) {
                 ret++;
-                loop2->removeNodes();
+                delete(loop2);
                 break;
             }
+            delete(loop2);
         }
-        loop1->removeNodes();
+        delete(loop1);
     }
+    this->fillSmallBoundaries(this->E.numels());
     cn.clear();
     cm.clear();
+    delete(tmp1);
     return ret;
 }
 
@@ -258,92 +264,58 @@ int ExtTriMesh::moveVerticesInwards(Point &componentCenter, std::map<Vertex *, P
     return ret;
 }
 
-bool ExtTriMesh::decoupleSecondFromFirstComponent(double minAllowedDistance, unsigned max_iterations) {
+bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, unsigned max_iterations) {
+    bool quiet = JMesh::quiet;
     int iteration_counter = 0;
-    // save origin of each point
-    Vertex *v, *v1, *v2, *v3;
-    ExtTriMesh *tmptin; // temporary triangulation for intermediate cleaning
-    std::map<Vertex*, Point> origin, shift;
-    std::map<Vertex*, int> numNormals;
+    short innerBit = 4, outerBit = 5;
+    Triangle *t;
     Node *n;
-    tmptin = (ExtTriMesh*) this->extractShell((Triangle*) T.head()->data);
-    // dilate the inner component by d, to maintain the minAllowedDistance
-    tmptin->dilate(minAllowedDistance);
-    this->joinTailTriangulation(tmptin);
-    T.appendTail(T.popHead());
-    delete(tmptin);
-    FOREACHVERTEX(v, n)
-        origin.insert(std::pair<Vertex*, Point>(v,Point(*v)));
+    Vertex *v, *v1, *v2, *v3;
+    ExtTriMesh *outer, *inner; // temporary triangulation for intermediate cleaning etc.
+    std::map<Vertex*, Point> shift;
+    std::map<Vertex*, int> numNormals;
+    if(this->shells() != 2) JMesh::error("Must have exactly 2 components.\n");
+    outer = (ExtTriMesh*) this->extractFirstShell(); // extract outer (first) component
+    inner = (ExtTriMesh*) this->extractFirstShell(); // extract inner (second) component
+    this->joinTailTriangulation(outer);
+    delete(outer);
+    // dilate the inner component by d, to contrain the minAllowedDistance
+    inner->dilate(minAllowedDistance);
+    JMesh::quiet = true; inner->clean(); JMesh::quiet = quiet;
     while(iteration_counter++ < max_iterations) {
-        // switch the order of the components (by moving one triangle to the head of the list)
-        T.appendHead(T.popTail());
-        List *components = this->getComponentsList();
-        if(components->numels() != 2) JMesh::error("Must have exactly 2 components.\n");
-        List *first = (List*) components->head()->data;
-        Triangle *t;
-        // mark4 first (inner) component
-        FOREACHVTTRIANGLE(first, t, n) {
-            MARK_BIT(t,4);
-            MARK_BIT(t->v1(),4);
-            MARK_BIT(t->v2(),4);
-            MARK_BIT(t->v3(),4);
-        }
-        delete(first);
-        delete(components);
-        // mark5 second (outer) component
-        FOREACHTRIANGLE(t, n) if(!IS_BIT(t,4)) {
-            MARK_BIT(t,5);
-            MARK_BIT(t->v1(),5);
-            MARK_BIT(t->v2(),5);
-            MARK_BIT(t->v3(),5);
-        }
+        this->selectAllTriangles(outerBit); // mark outer component
+        inner->selectAllTriangles(innerBit); // mark inner component
+        this->joinHeadTriangulation(inner);
+        JMesh::info("Iteration %d\n", iteration_counter);
+        // mark0 triangles of the outer component which are inside of the inner component
+        if(!this->markTrianglesInsideComponent(0, outerBit, innerBit)) break; // finished
+        // we have triangles of the outer component that are inside or too close to the inner component
+        inner = (ExtTriMesh*) this->extractFirstShell(); // extract inner component
         shift.clear();
         numNormals.clear();
         FOREACHVERTEX(v, n) { // initialize shift with (0,0,0)
             shift.insert(std::pair<Vertex*, Point>(v,Point()));
             numNormals.insert(std::pair<Vertex*, int>(v,0));
         }
-        JMesh::info("Iteration %d\n", iteration_counter);
-        // mark0 triangles of componenent2 (mark5) which are inside of component1 (mark4)
-        if(!this->markTrianglesInsideComponent(0, 5, 4)) {
-            // mark0 vertices of componenent2 (mark5) which are inside of component1 (mark4)
-//            if(!this->moveTooCloseVerticesOutwards(minAllowedDistance, 5, 4)) {
-                // delete first shell (since we didn't change it we are only interested in the second)
-                FOREACHTRIANGLE(t, n) if(IS_BIT(t,4)) { // get first shell
-                    this->unmarkEverything();
-                    this->removeShell(t);
-                    this->eulerUpdate();
-                    break;
-                }
-                break; // finished
-//            }
-        } else { // we have triangles of the component2 that are inside or too close to the component1
-            FOREACHTRIANGLE(t, n) {
-                if(IS_BIT(t,0) && IS_BIT(t,5)) { // compute shift for affected vertices
-                    Point normal = t->getNormal();
-                    v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
-                    shift[v1] += normal; shift[v2] += normal; shift[v3] += normal;
-                    numNormals[v1]++; numNormals[v2]++; numNormals[v3]++;
-                }
-                UNMARK_BIT(t,0);
-            }
-            // compute shift as mean normal of surrounding triangles
-            FOREACHVERTEX(v, n) if(int num = numNormals[v]) *v += shift[v]/num;
+        FOREACHTRIANGLE(t, n) if(IS_BIT(t,0)) { // compute shift for affected vertices
+            UNMARK_BIT(t,0);
+            Point normal = t->getNormal();
+            v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
+            shift[v1] += normal; shift[v2] += normal; shift[v3] += normal;
+            numNormals[v1]++; numNormals[v2]++; numNormals[v3]++;
         }
-        FOREACHTRIANGLE(t, n) if(IS_BIT(t,5)) { // get first triangle of component1
-            this->unmarkEverything();
-            tmptin = (ExtTriMesh*) this->extractShell(t); // extract this component
-            JMesh::quiet = true;
-            tmptin->clean(); // and clean and repair it (because the shift could have produced new intersections ...)
-            tmptin->checkAndRepair();
-            JMesh::quiet = false;
-            this->deselectTriangles();
-            this->joinTailTriangulation(tmptin); // insert it again
-            delete(tmptin);
-            this->eulerUpdate();
-            JMesh::quiet = true; this->checkAndRepair(); JMesh::quiet = false;
-            break;
+        // compute shift as mean normal of surrounding triangles
+        for(std::map<Vertex*, Point>::iterator it = shift.begin(); it != shift.end(); ++it) {
+            v = it->first;
+            if(int num = numNormals[v]) *v += it->second/num;
         }
+        this->unmarkEverything();
+        JMesh::report_progress("Cleaning ...");
+        JMesh::quiet = true;
+        this->clean(); // and clean and repair it (because the shift could have produced new intersections ...)
+        this->checkAndRepair();
+        JMesh::quiet = quiet;
+        JMesh::report_progress("");
     }
     if(iteration_counter < max_iterations) return true;
     return false;

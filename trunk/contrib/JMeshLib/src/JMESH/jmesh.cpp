@@ -41,7 +41,6 @@ const char *JMesh::app_authors = NULL;
 const char *JMesh::app_url = NULL;
 const char *JMesh::app_maillist = NULL;
 bool JMesh::quiet = false;
-bool JMesh::global_quiet = false;
 
 void JMesh::init(double at, FILE *hf, void (*dm)(const char *, int))
 {
@@ -55,7 +54,6 @@ void JMesh::init(double at, FILE *hf, void (*dm)(const char *, int))
  app_url = NULL;
  app_maillist = NULL;
  quiet = false;
- global_quiet = false;
 }
 
 
@@ -109,7 +107,7 @@ void JMesh::warning(const char *msg, ...)
 
 void JMesh::info(const char *msg, ...)
 {
- if (quiet || global_quiet) return;
+ if (quiet) return;
  static char fmt[2048], fms[4096];
  va_list ap;
  va_start(ap, msg);
@@ -129,7 +127,7 @@ void JMesh::info(const char *msg, ...)
 
 void JMesh::begin_progress(bool newline)
 {
- if (quiet || global_quiet || !newline) return;
+ if (quiet || !newline) return;
  if (display_message != NULL) 
   display_message("\n", DISPMSG_ACTION_PUTNEWLINE);
  else
@@ -138,7 +136,7 @@ void JMesh::begin_progress(bool newline)
 
 void JMesh::report_progress(const char *msg, ...)
 {
- if (quiet || global_quiet) return;
+ if (quiet) return;
  static char fmt[2048] = "\r";
  static char fms[4096];
  static char rotating_bar[5] = "-\\|/";
@@ -177,7 +175,7 @@ void JMesh::report_progress(const char *msg, ...)
 
 void JMesh::end_progress(bool newline)
 {
- if (quiet || global_quiet || !newline) return;
+ if (quiet || !newline) return;
  if (display_message != NULL)
   display_message("\n", DISPMSG_ACTION_PUTNEWLINE);
  else

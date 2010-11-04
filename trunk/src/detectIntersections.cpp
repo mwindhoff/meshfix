@@ -322,7 +322,7 @@ int ExtTriMesh::selectIntersectingTriangles(UINT16 tris_per_cell)
  i=0; FOREACHNODE(cells, n)
  {
   (((di_cell *)n->data)->di_selectIntersections());
-  JMesh::report_progress("%d %% done   ",((i++)*100)/cells.numels());
+  JMesh::report_progress("Selecting intersections ... %d %%",((i++)*100)/cells.numels());
  }
  JMesh::report_progress("");
  JMesh::end_progress(false);

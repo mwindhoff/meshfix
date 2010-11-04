@@ -58,11 +58,11 @@ int ExtTriMesh::swapAndCollapse()
 {
  Node *n;
  Triangle *t;
-
+ bool quiet = JMesh::quiet;
  if (epsilon_angle != 0.0)
  {
   FOREACHTRIANGLE(t, n) UNMARK_VISIT(t);
-  JMesh::quiet = true; removeDegenerateTriangles(); JMesh::quiet = false;
+  JMesh::quiet = true; removeDegenerateTriangles(); JMesh::quiet = quiet;
   int failed = 0;
   FOREACHTRIANGLE(t, n) if (IS_VISITED(t)) failed++;
   return failed;
@@ -119,22 +119,22 @@ int ExtTriMesh::swapAndCollapse()
 bool ExtTriMesh::cleanDegenerateTriangles(int max_iters, int num_to_keep)
 {
  int n, iter_count = 0, iter_count2 = 0;
-
- printf("Removing degeneracies...\n");
+ bool quiet = JMesh::quiet;
+ JMesh::info("Removing degeneracies...\n");
  while ((++iter_count) <= max_iters && swapAndCollapse())
  {
   for (n=1; n<iter_count; n++) growSelection();
   removeSelectedTriangles();
   removeSmallestComponents(num_to_keep);
-  JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+  JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = quiet;
   if(removeOverlappingTriangles()) {
-      JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+      JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = quiet;
       while((++iter_count2) <= max_iters && removeOverlappingTriangles()) {
           // remove and fill didn't help => region growing
-          JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+          JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = quiet;
           for(n=1; n<iter_count2; n++) growSelection();
           this->removeSelectedTriangles();
-          JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+          JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = quiet;
           this->deselectTriangles();
       }
   }
@@ -212,14 +212,14 @@ void ExtTriMesh::selectTrianglesInCubes()
 bool ExtTriMesh::removeSelfIntersections(int max_iters, int number_components_to_keep)
 {
  int n, iter_count = 0;
-
+ bool quiet = JMesh::quiet;
  printf("Removing self-intersections...\n");
  while ((++iter_count) <= max_iters && selectIntersectingTriangles())
  {
   for (n=1; n<iter_count; n++) growSelection();
   removeSelectedTriangles();
   removeSmallestComponents(number_components_to_keep);
-  JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = false;
+  JMesh::quiet = true; fillSmallBoundaries(E.numels()); JMesh::quiet = quiet;
   asciiAlign();
   selectTrianglesInCubes();
  }
@@ -230,8 +230,9 @@ bool ExtTriMesh::removeSelfIntersections(int max_iters, int number_components_to
 
 bool ExtTriMesh::removeSelfIntersections2(int max_iterations, int number_components_to_keep)
 {
+    bool quiet = JMesh::quiet;
     int iteration_counter = 0, remove_and_fill_counter = 0, smooth_counter = 0, grow_counter = 0;
-    printf("Removing self-intersections (using advanced method)...\n");
+    JMesh::info("Removing self-intersections (using advanced method)...\n");
     int nintersecting = 0, nintersecting_new = 0;
     deselectTriangles();
     invertSelection();
@@ -247,7 +248,7 @@ bool ExtTriMesh::removeSelfIntersections2(int max_iterations, int number_compone
             // remove smallest shells
             removeSmallestComponents(number_components_to_keep);
             // fill, refine, fair, keep new triangles selected
-            JMesh::quiet=true; fillSmallBoundaries(E.numels(), true); JMesh::quiet=false;
+            JMesh::quiet = true; fillSmallBoundaries(E.numels(), true); JMesh::quiet = quiet;
             // grow selection, recheck selection for intersections
             growSelection();
             if (nintersecting != nintersecting_new && remove_and_fill_counter < max_iterations*2) {
@@ -272,7 +273,7 @@ bool ExtTriMesh::removeSelfIntersections2(int max_iterations, int number_compone
             // increase region to smooth
             for( int i = 0; i < smooth_counter; i++) growSelection();
             // smooth with 1 step, keep selection
-            JMesh::quiet=true; laplacianSmooth(); JMesh::quiet=false;
+            JMesh::quiet = true; laplacianSmooth(); JMesh::quiet = quiet;
             growSelection();
             nintersecting = 0;
             JMesh::info("Stage: Remove and Fill (%d)\n", iteration_counter+1);
@@ -287,7 +288,7 @@ bool ExtTriMesh::removeSelfIntersections2(int max_iterations, int number_compone
                 growSelection();
             removeSelectedTriangles();
             removeSmallestComponents(number_components_to_keep);
-            JMesh::quiet=true; fillSmallBoundaries(E.numels(), true); JMesh::quiet=false;
+            JMesh::quiet = true; fillSmallBoundaries(E.numels(), true); JMesh::quiet = quiet;
             if (++grow_counter >= max_iterations) break;
             JMesh::info("Stage: Remove and Fill (%d)\n", iteration_counter+1);
         }
@@ -321,7 +322,7 @@ bool ExtTriMesh::clean(int max_iters, int inner_loops, int number_components_to_
 
  for (int n=0; n<max_iters; n++)
  {
-  printf("********* ITERATION %d *********\n",n);
+  JMesh::info("*** Cleaning iteration %d ***\n",n);
   this->removeOverlappingTriangles();
   nd=cleanDegenerateTriangles(inner_loops, number_components_to_keep);
   deselectTriangles(); invertSelection();
@@ -332,3 +333,15 @@ bool ExtTriMesh::clean(int max_iters, int inner_loops, int number_components_to_
  return false;
 }
 
+bool ExtTriMesh::removeHandles() {
+    double radius = 1;
+    unsigned max_radius = this->bboxLongestDiagonal();
+    while(this->handles() && radius < max_radius) {
+        if(this->shells() > 1) this->removeSmallestComponents(1);
+        this->selectTinyHandles(radius++);
+        this->removeSelectedTriangles();
+        this->fillSmallBoundaries(this->E.numels(), true, false);
+        this->d_handles = this->d_shells = 1;
+    }
+    return this->handles() == 0;
+}

@@ -288,8 +288,11 @@ class Triangulation
  //
  /////////////////////////////////////////////////////////////////////////////
 
+ //! Selects all the triangles. O(N).
+ void selectAllTriangles(short markBit = 0);
+
  //! Deselects all the triangles. O(N).
- void deselectTriangles();
+ void deselectTriangles(short markBit = 0);
 
  //! Removes all the selected triangles. O(N).
  void removeSelectedTriangles();
@@ -396,10 +399,13 @@ class Triangulation
 
  //! Joins the element lists of the triangulation src to the tail of the current lists.
  void joinTailTriangulation(Triangulation *src);
+ //! Joins the element lists of the triangulation src to the head of the current lists.
+ void joinHeadTriangulation(Triangulation *src);
 
  //! Convenience function to extract the shell connected to the triangle t (while removing it from the current mesh).
  Triangulation *extractShell(Triangle *t);
-
+ //! Convenience function to extract the first shell (shell connected to the first triangle in T).
+ Triangulation *extractFirstShell();
 
  /////////////////////////////////////////////////////////////////////////////
  //

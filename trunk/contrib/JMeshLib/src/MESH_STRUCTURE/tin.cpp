@@ -490,13 +490,22 @@ int Triangulation::removeVertices()
 //////////////////////////////////////////////////////////////////
 
 
-//////////////// Deselect all the triangles /////////////
+//////////////// Select all the triangles /////////////
 
-void Triangulation::deselectTriangles()
+void Triangulation::selectAllTriangles(short markBit)
 {
  Triangle *t;
  Node *n;
- FOREACHTRIANGLE(t, n) UNMARK_VISIT(t);
+ FOREACHTRIANGLE(t, n) MARK_BIT(t, markBit);
+}
+
+//////////////// Deselect all the triangles /////////////
+
+void Triangulation::deselectTriangles(short markBit)
+{
+ Triangle *t;
+ Node *n;
+ FOREACHTRIANGLE(t, n) UNMARK_BIT(t, markBit);
 }
 
 
@@ -963,10 +972,19 @@ void Triangulation::joinTailTriangulation(Triangulation *src) {
     d_boundaries = d_handles = d_shells = 1;
 }
 
+void Triangulation::joinHeadTriangulation(Triangulation *src) {
+    src->joinTailTriangulation(this);
+    this->joinTailTriangulation(src);
+}
+
 Triangulation *Triangulation::extractShell(Triangle *t) {
     Triangulation *tin = new Triangulation((Triangle*) t);
     this->removeShell(t);
     return tin;
+}
+
+Triangulation *Triangulation::extractFirstShell() {
+    return this->extractShell((Triangle*)T.head()->data);
 }
 
 //////////////////////////////////////////////////////////////////
