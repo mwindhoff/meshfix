@@ -264,50 +264,61 @@ int ExtTriMesh::moveVerticesInwards(Point &componentCenter, std::map<Vertex *, P
     return ret;
 }
 
-bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, unsigned max_iterations) {
+bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, unsigned max_iterations, bool treatFirstAsOuter, bool outwards) {
     bool quiet = JMesh::quiet;
     int iteration_counter = 0;
-    short innerBit = 4, outerBit = 5;
+    short constantBit = 4, decoupleBit = 5;
     Triangle *t;
     Node *n;
     Vertex *v, *v1, *v2, *v3;
-    ExtTriMesh *outer, *inner; // temporary triangulation for intermediate cleaning etc.
+    ExtTriMesh *shellToDecouple, *constantShell; // temporary triangulation for intermediate cleaning etc.
     std::map<Vertex*, Point> shift;
     std::map<Vertex*, int> numNormals;
     if(this->shells() != 2) JMesh::error("Must have exactly 2 components.\n");
-    outer = (ExtTriMesh*) this->extractFirstShell(); // extract outer (first) component
-    inner = (ExtTriMesh*) this->extractFirstShell(); // extract inner (second) component
-    this->joinTailTriangulation(outer);
-    delete(outer);
-    // dilate the inner component by d, to contrain the minAllowedDistance
-    inner->dilate(minAllowedDistance);
-    JMesh::quiet = true; inner->clean(); JMesh::quiet = quiet;
+    shellToDecouple = (ExtTriMesh*) this->extractFirstShell();
+    constantShell = (ExtTriMesh*) this->extractFirstShell();
+    this->joinTailTriangulation(shellToDecouple);
+    delete(shellToDecouple);
+    // dilate the constant component by d, to contrain the minAllowedDistance
+    constantShell->dilate((treatFirstAsOuter? 1:-1)*minAllowedDistance);
+    JMesh::quiet = true; constantShell->clean(); JMesh::quiet = quiet;
     while(iteration_counter++ < max_iterations) {
-        this->selectAllTriangles(outerBit); // mark outer component
-        inner->selectAllTriangles(innerBit); // mark inner component
-        this->joinHeadTriangulation(inner);
+        this->selectAllTriangles(decoupleBit); // mark component to decouple
+        unsigned toDecoupleTriangleNumber = this->T.numels();
+        constantShell->selectAllTriangles(constantBit); // mark constant component
+        this->joinHeadTriangulation(constantShell);
         JMesh::info("Iteration %d\n", iteration_counter);
-        // mark0 triangles of the outer component which are inside of the inner component
-        if(!this->markTrianglesInsideComponent(0, outerBit, innerBit)) break; // finished
-        // we have triangles of the outer component that are inside or too close to the inner component
-        inner = (ExtTriMesh*) this->extractFirstShell(); // extract inner component
+        // mark0 triangles of the component to decouple which are inside of the constant component
+        unsigned nt = this->markTrianglesInsideComponent(0, decoupleBit, constantBit);
+        constantShell = (ExtTriMesh*) this->extractFirstShell();
+        if((treatFirstAsOuter && nt == 0 && outwards) || // outer outwards
+           (treatFirstAsOuter && nt == 0 && !outwards) || // outer inwards
+           (!treatFirstAsOuter && nt == toDecoupleTriangleNumber && !outwards) // inner inwards
+           ) break; // finished
+        // we have overlapping triangles
         shift.clear();
         numNormals.clear();
         FOREACHVERTEX(v, n) { // initialize shift with (0,0,0)
             shift.insert(std::pair<Vertex*, Point>(v,Point()));
             numNormals.insert(std::pair<Vertex*, int>(v,0));
         }
-        FOREACHTRIANGLE(t, n) if(IS_BIT(t,0)) { // compute shift for affected vertices
+        FOREACHTRIANGLE(t, n) { // IS_BIT(t,0) == triangle is inside the constant component
+            if(( IS_BIT(t,0) &&  treatFirstAsOuter &&  outwards) || // outer outwards (move inside triangles out)
+               ( IS_BIT(t,0) &&  treatFirstAsOuter && !outwards) || // outer inwards  (move inside triangles in)
+               (!IS_BIT(t,0) && !treatFirstAsOuter && !outwards)    // inner inwards  (move outside triangle in)
+               ) { // compute shift for affected vertices
+                Point normal = t->getNormal();
+                if(!outwards) normal *= -1; // move the boundary inwards
+                v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
+                shift[v1] += normal; shift[v2] += normal; shift[v3] += normal;
+                numNormals[v1]++; numNormals[v2]++; numNormals[v3]++;
+            }
             UNMARK_BIT(t,0);
-            Point normal = t->getNormal();
-            v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
-            shift[v1] += normal; shift[v2] += normal; shift[v3] += normal;
-            numNormals[v1]++; numNormals[v2]++; numNormals[v3]++;
         }
         // compute shift as mean normal of surrounding triangles
         for(std::map<Vertex*, Point>::iterator it = shift.begin(); it != shift.end(); ++it) {
             v = it->first;
-            if(int num = numNormals[v]) *v += it->second/num;
+            if(double num = (double)numNormals[v]) *v += it->second/num;
         }
         this->unmarkEverything();
         JMesh::report_progress("Cleaning ...");
@@ -319,6 +330,30 @@ bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, uns
     }
     if(iteration_counter < max_iterations) return true;
     return false;
+}
+void ExtTriMesh::cutFirstFromSecondComponent(double minAllowedDistance) {
+    bool quiet = JMesh::quiet;
+    short constantBit = 4, cutBit = 5;
+    if(this->shells() != 2) JMesh::error("Must have exactly 2 components.\n");
+    ExtTriMesh *shellToDecouple, *constantShell; // temporary triangulation for intermediate cleaning etc.
+    shellToDecouple = (ExtTriMesh*) this->extractFirstShell();
+    constantShell = (ExtTriMesh*) this->extractFirstShell();
+    this->joinTailTriangulation(shellToDecouple);
+    delete(shellToDecouple);
+    // dilate the inner component by d, to contrain the minAllowedDistance
+    constantShell->dilate(-1*minAllowedDistance);
+    JMesh::quiet = true; constantShell->clean(); JMesh::quiet = quiet;
+    this->selectAllTriangles(cutBit);
+    constantShell->selectAllTriangles(constantBit);
+    this->joinTailTriangulation(constantShell);
+    // mark0 triangles of the outer component which are inside of the inner component
+    unsigned nt = this->markTrianglesInsideComponent(0, constantBit, cutBit);
+    constantShell = (ExtTriMesh*) this->extractFirstShell(); // extract inner component
+    this->invertSelection();
+    this->removeSelectedTriangles();
+    this->unmarkEverything();
+    this->checkAndRepair();
+    this->clean();
 }
 
 int ExtTriMesh::markTrianglesInsideComponent(short insideMarkBit, short componentMarkBit1, short componentMarkBit2) {
