@@ -115,10 +115,6 @@ void usage()
  printf("  An optionally passed file2 is merged with the first one.\n");
  printf("OPTIONS:\n");
  printf(" -a <epsilon_angle>  Allowed range: 0 < epsilon_angle < 2, default: 0 (degrees).\n");
- printf(" --decouple <dmin>   Treat 1st file as outer, 2nd file as inner component.\n");
- printf("                     Resolve intersections by moving outer triangles outward.\n");
- printf("                     Constrain the distance between the components > dmin.\n");
- printf(" --dilate <d>        Dilate the surface by d. d < 0 means shrinking.\n");
  printf(" -j                  Join 2 biggest components if they overlap, remove the rest.\n");
  printf(" -jc                 Join the closest pair of components.\n");
  printf(" -h, --help          Print this help and exit.\n");
@@ -132,6 +128,17 @@ void usage()
  printf(" --smooth <n>        Apply n laplacian smoothing steps.\n");
  printf(" -s, --stl           Result is saved in STL     format instead of OFF.\n");
  printf(" -w, --wrl           Result is saved in VRML1.0 format instead of OFF.\n");
+ printf(" == Cuting, decoupling, dilation ==\n");
+ printf(" --cut <d>           Treat 1st file as inner, 2nd file as outer component.\n");
+ printf("                     Remove triangles of inner outside of outer and fill holes.\n");
+ printf(" --decouple-outout <d>  Treat 1st file as outer, 2nd file as inner component.\n");
+ printf("                     Resolve overlaps by moving outer's triangles outwards.\n");
+ printf(" --decouple-outin <d> Treat 1st file as outer, 2nd file as inner component.\n");
+ printf("                     Resolve overlaps by moving outer's triangles inwards.\n");
+ printf(" --decouple-inin <d> Treat 1st file as inner, 2nd file as outer component.\n");
+ printf("                     Resolve overlaps by moving inner's triangles inwards.\n");
+ printf("                     Constrain the min distance between the components > d.\n");
+ printf(" --dilate <d>        Dilate the surface by d. d < 0 means shrinking.\n");
  printf("Accepted input formats are OFF, PLY and STL.\nOther formats are supported only partially.\n");
  printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
@@ -176,7 +183,8 @@ int main(int argc, char *argv[])
  bool haveJoinClosestComponents = false;
  int uniformRemeshSteps = 0, numberOfVertices = 0;
  int smoothingSteps = 0;
- double decoupleMinDist = -1;
+ double cutMinDist = -1;
+ double decoupleOuterOutMinDist = -1, decoupleOuterInMinDist = -1, decoupleInnerInMinDist = -1;
  double dilateDist = 0;
  bool clean = true;
  bool removeHandles = false;
@@ -228,11 +236,47 @@ int main(int argc, char *argv[])
           JMesh::error("# smoothing steps must be >= 1.\n");
       i++;
   }
-  else if (!strcmp(argv[i], "--decouple")) {
+  else if (!strcmp(argv[i], "--cut")) {
       if (i<argc-1) {
-          decoupleMinDist = atof(argv[i+1]);
-          if (decoupleMinDist < 0)
-              JMesh::error("decoupleMinDist must be >= 0.\n");
+          cutMinDist = atof(argv[i+1]);
+          if (cutMinDist < 0)
+              JMesh::error("cutMinDist must be >= 0.\n");
+          else
+              i++;
+      }
+  }
+  else if (!strcmp(argv[i], "--decouple-outout")) {
+      if (i<argc-1) {
+          decoupleOuterOutMinDist = atof(argv[i+1]);
+          if (decoupleOuterOutMinDist < 0)
+              JMesh::error("decoupleOuterOutMinDist must be >= 0.\n");
+          else
+              i++;
+      }
+  }
+  else if (!strcmp(argv[i], "--decouple-outin")) {
+      if (i<argc-1) {
+          decoupleOuterInMinDist = atof(argv[i+1]);
+          if (decoupleOuterInMinDist < 0)
+              JMesh::error("decoupleOuterInMinDist must be >= 0.\n");
+          else
+              i++;
+      }
+  }
+  else if (!strcmp(argv[i], "--decouple-inin")) {
+      if (i<argc-1) {
+          decoupleInnerInMinDist = atof(argv[i+1]);
+          if (decoupleInnerInMinDist < 0)
+              JMesh::error("decoupleInnerInMinDist must be >= 0.\n");
+          else
+              i++;
+      }
+  }
+  else if (!strcmp(argv[i], "--decouple-inin")) {
+      if (i<argc-1) {
+          decoupleInnerInMinDist = atof(argv[i+1]);
+          if (decoupleInnerInMinDist < 0)
+              JMesh::error("decoupleInMinDist must be >= 0.\n");
           else
               i++;
       }
@@ -303,11 +347,23 @@ int main(int argc, char *argv[])
      printf("Dilating by %g.\n", dilateDist);
      tin.dilate(dilateDist);
  }
-
- if (decoupleMinDist >= 0) {
-     printf("Decoupling first component from second one using %g as minimum allowed distance.\n", decoupleMinDist);
+ if (cutMinDist >= 0) {
+     printf("Cutting triangles of the first component away, that are outside of the second one; Fill holes.\n");
+     if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't cut. Having %d and should have 2.\n", tin.shells());
+     else tin.cutFirstFromSecondComponent(cutMinDist);
+ }
+ if (decoupleOuterOutMinDist >= 0) {
+     printf("Decoupling first (outer) component from second one (move outwards). Min. distance: %g.\n", decoupleOuterOutMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleFirstFromSecondComponent(decoupleMinDist, 100);
+     else tin.decoupleFirstFromSecondComponent(decoupleOuterOutMinDist, 100, true, true);
+ } else if(decoupleOuterInMinDist >= 0) {
+     printf("Decoupling first (outer) component from second one (move inwards). Min. distance: %g.\n", decoupleInnerInMinDist);
+     if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
+     else tin.decoupleFirstFromSecondComponent(decoupleOuterInMinDist, 100, true, false);
+ } else if(decoupleInnerInMinDist >= 0) {
+     printf("Decoupling first (inner) component from second one (move inwards). Min. distance: %g.\n", decoupleInnerInMinDist);
+     if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
+     else tin.decoupleFirstFromSecondComponent(decoupleInnerInMinDist, 100, false, false);
  }
 
  if(smoothingSteps) {

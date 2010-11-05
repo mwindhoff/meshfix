@@ -63,9 +63,16 @@ class ExtTriMesh : public Triangulation
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
  double mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner);
  int moveVerticesInwards(Point &componentCenter, std::map<Vertex*,Point> &origin, double stepsize = 1.0, double distance = 1.0);
- //! Iteratively moves overlapping parts of the second (outer) component outwards in the direction of the normals.
- //! Intersections are removed in each iteration. At the end the first component is removed.
- bool decoupleFirstFromSecondComponent(double minAllowedDistance = 1.0, unsigned max_iterations = 10);
+ //! Iteratively moves overlapping parts of the first component out or inwards (in terms of normal orientation), to resolve
+ //! overlaps. There are 3 possibilities to resolve overlaps of 2 components (outer and inner):
+ //! 1) Move the vertices of the outer component outwards, such that it the outer component contains the inner component.
+ //! 2) Move the vertices of the outer component inwards, such that it doesn't overlap anymore.
+ //! 3) Move the vertices of the inner component inwards, such that it the outer component contains the inner component.
+ //! Mesh is cleaned in each iteration. At the end the second component is removed.
+ bool decoupleFirstFromSecondComponent(double minAllowedDistance = 1.0, unsigned max_iterations = 10, bool treatFirstAsOuter = true, bool outwards = true);
+ //! Removes all parts of the first component, that are outside the second component and fills the holes again.
+ //! Use decoupleFirstFromSecondComponent() afterwards, to remove overlaps produces by the hole filling.
+ void cutFirstFromSecondComponent(double minAllowedDistance = 1.0);
  //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
  int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
  //! Moves vertices of component1 that are closer than d to any triangle of component2.

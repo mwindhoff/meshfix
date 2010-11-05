@@ -410,7 +410,7 @@ int Triangulation::removeTriangles()
  int r = 0;
 
  n = T.head();
- do
+ while(n != NULL)
  {
   t = (Triangle *)n->data;
   n = n->next();
@@ -420,7 +420,7 @@ int Triangulation::removeTriangles()
    T.removeCell((n!=NULL)?(n->prev()):T.tail());
    delete t;
   }
- } while (n != NULL);
+ }
 
  d_boundaries = d_handles = d_shells = 1;
 
@@ -437,7 +437,7 @@ int Triangulation::removeEdges()
  int r = 0;
 
  n = E.head();
- do
+ while (n != NULL)
  {
   e = (Edge *)n->data;
   n = n->next();
@@ -447,7 +447,7 @@ int Triangulation::removeEdges()
    E.removeCell((n!=NULL)?(n->prev()):E.tail());
    delete e;
   }
- } while (n != NULL);
+ }
 
  d_boundaries = d_handles = d_shells = 1;
 
@@ -464,7 +464,7 @@ int Triangulation::removeVertices()
  int r = 0;
 
  n = V.head();
- do
+ while (n != NULL)
  {
   v = (Vertex *)n->data;
   n = n->next();
@@ -474,7 +474,7 @@ int Triangulation::removeVertices()
    V.removeCell((n!=NULL)?(n->prev()):V.tail());
    delete v;
   }
- } while (n != NULL);
+ }
 
  d_boundaries = d_handles = d_shells = 1;
 
