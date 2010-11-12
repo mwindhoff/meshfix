@@ -44,7 +44,7 @@ int ExtTriMesh::joinOverlappingComponentPair() {
     this->removeSmallestComponents(2);
     c1 = ComponentStruct(t1);
     c2 = ComponentStruct(t2);
-    int ret = this->joinComponentsCloseBoundaries(c1.triangles, c2.triangles, DBL_MAX);
+    int ret = this->joinComponentsBiggestBoundaryPair(c1.triangles, c2.triangles, DBL_MAX);
     this->eulerUpdate();
     this->fillSmallBoundaries(0, true, false);
     return ret;
@@ -81,13 +81,14 @@ int ExtTriMesh::joinOverlappingComponentPair2() {
     FOREACHTRIANGLE(t, n) if(t->mask & (1<<6 | 1<<7)) t->mask = 1;
     this->removeSelectedTriangles();
     this->eulerUpdate();
+    this->removeSmallestComponents(2);
     if(this->shells() != 2) return 0;
     FOREACHTRIANGLE(t, n) if(!IS_BIT(t,5)) break;
     ComponentStruct c1(t);
     FOREACHTRIANGLE(t, n) if(!IS_BIT(t,4)) break;
     ComponentStruct c2(t);
 
-    int ret = this->joinComponentsCloseBoundaries(c1.triangles, c2.triangles, 10);
+    int ret = this->joinComponentsBiggestBoundaryPair(c1.triangles, c2.triangles, 10);
     if(!ret) {
         this->selectBoundaryTriangles();
         this->removeSelectedTriangles();
@@ -95,7 +96,7 @@ int ExtTriMesh::joinOverlappingComponentPair2() {
         c1 = ComponentStruct(t);
         FOREACHTRIANGLE(t, n) if(!IS_BIT(t,4)) break;
         c2 = ComponentStruct(t);
-        ret = this->joinComponentsCloseBoundaries(c1.triangles, c2.triangles, 10);
+        ret = this->joinComponentsBiggestBoundaryPair(c1.triangles, c2.triangles, 10);
         if(!ret) return 0;
     }
     this->eulerUpdate();
@@ -104,51 +105,40 @@ int ExtTriMesh::joinOverlappingComponentPair2() {
     return ret;
 }
 
-int ExtTriMesh::joinComponentsCloseBoundaries(List *nl, List *ml, double joinDistance) {
+int ExtTriMesh::joinComponentsBiggestBoundaryPair(List *nl, List *ml, double joinDistance) {
     ComponentStruct cn(nl), cm(ml);
     cn.initializeBoundaries();
     cm.initializeBoundaries();
-    List *loop1, *loop2;
-    int ret = 0;
-    List *tmp1 = new List();
-    // first join all boundaries that are closer than the joinDistance
-    while ( loop1 = (List*) cn.boundaries->popHead() ) {
-        List *tmp2 = new List();
-        Vertex *bv, *bw;
-        bool joined = false;
-        while (loop2 = (List*) cm.boundaries->popHead()) {
-            if(loopsHaveAllVerticesCloserThanDistance(loop1, loop2, joinDistance)
-                && closestPair(loop1, loop2, &bv, &bw)
-                && joinBoundaryLoops(bv, bw, true, false, false)) {
-                ret++;
-                joined = true;
-                delete(loop2);
-                break;
-            } else tmp2->appendHead(loop2); // retry this boundary later
-        }
-        if(!joined) tmp1->appendHead(loop1);
-        cm.boundaries->joinTailList(tmp2); // leave boundaries that had no partner
-        delete(tmp2);
+    List *loop, *biggestLoop1 = NULL, *biggestLoop2 = NULL;
+    // get the pair of the biggest boundary loops
+    List *tmp = new List();
+    while (loop = (List*) cn.boundaries->popHead()) {
+        if(biggestLoop1 && loop->numels() <= biggestLoop1->numels()) tmp->appendHead(loop);
+        else biggestLoop1 = loop;
     }
-    // now join all other boundaries
-    while ( loop1 = (List*) tmp1->popHead() ) {
-        Vertex *bv, *bw;
-        while (loop2 = (List*) cm.boundaries->popHead()) {
-            if( closestPair(loop1, loop2, &bv, &bw)
-                && joinBoundaryLoops(bv, bw, false, false, false)) {
-                ret++;
-                delete(loop2);
-                break;
-            }
-            delete(loop2);
-        }
-        delete(loop1);
+    cn.boundaries->joinTailList(tmp);
+    while (loop = (List*) cm.boundaries->popHead()) {
+        if(biggestLoop2 && loop->numels() <= biggestLoop2->numels()) tmp->appendHead(loop);
+        else biggestLoop2 = loop;
     }
+    cm.boundaries->joinTailList(tmp);
+    delete(tmp);
+    bool ret = joinBoundaryPair(biggestLoop1, biggestLoop2);
+    this->eulerUpdate();
     this->fillSmallBoundaries(this->E.numels());
     cn.clear();
     cm.clear();
-    delete(tmp1);
     return ret;
+}
+
+bool ExtTriMesh::joinBoundaryPair(List *bl1, List *bl2) {
+    Vertex *v, *w; Node *n;
+    FOREACHVVVERTEX(bl1, v, n) {
+        double d = getClosestPartner(v, bl2, &w);
+        if(joinBoundaryLoops(v, w, false, true, false))
+            return true;
+    }
+    return false;
 }
 
 bool ExtTriMesh::loopsHaveAllVerticesCloserThanDistance(List *loop, List *loop2, const double &distance) {

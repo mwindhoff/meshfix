@@ -258,7 +258,7 @@ bool ExtTriMesh::removeSelfIntersections2(int max_iterations, int number_compone
             }
         } else {
             deselectTriangles();
-            if(!selectIntersectingTriangles())
+            if(iteration_counter == 1 || !selectIntersectingTriangles())
                 return true; // we have reached the end
             continue;
         }
@@ -324,10 +324,17 @@ bool ExtTriMesh::clean(int max_iters, int inner_loops, int number_components_to_
  {
   JMesh::info("*** Cleaning iteration %d ***\n",n);
   this->removeOverlappingTriangles();
-  nd=cleanDegenerateTriangles(inner_loops, number_components_to_keep);
-  deselectTriangles(); invertSelection();
-  ni=removeSelfIntersections2(inner_loops, number_components_to_keep);
-  if (ni && nd && isDegeneracyFree()) return true;
+  nd = cleanDegenerateTriangles(inner_loops, number_components_to_keep);
+  ni = removeSelfIntersections2(inner_loops, number_components_to_keep);
+  if(boundaries()) {
+      this->selectBoundaryTriangles();
+      this->removeSelectedTriangles();
+      this->fillSmallBoundaries(E.numels(), true, false);
+  }
+  if (ni && nd && isDegeneracyFree() && !this->checkGeometry()) {
+      this->checkAndRepair();
+      return true;
+  }
  }
 
  return false;
