@@ -556,12 +556,12 @@ int Triangulation::removeOverlappingTriangles()
  for (n=oved.tail(); n!=NULL; n=n->prev())
  {
   e = (Edge *)n->data;
-  if (!e->isOnBoundary() && e->t1->getDAngle(e->t2) == M_PI) {unlinkTriangle(e->t1); unlinkTriangle(e->t2);}
+  if (!e->isOnBoundary() && e->t1->getDAngle(e->t2) == M_PI) {
+   unlinkTriangle(e->t1); 
+   unlinkTriangle(e->t2);
+  }
  }
- removeUnlinkedElements();
- d_boundaries = d_handles = d_shells = 1;
-
- return 0;
+ return removeUnlinkedElements(); // >0 if something was removed
 }
 
 

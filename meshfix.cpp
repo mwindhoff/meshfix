@@ -118,12 +118,12 @@ void usage()
  printf(" -j                  Join 2 biggest components if they overlap, remove the rest.\n");
  printf(" -jc                 Join the closest pair of components.\n");
  printf(" -h, --help          Print this help and exit.\n");
- printf(" -ns <n>             Only the n biggest shells are kept.\n");
+ printf(" --shells <n>        Only the n biggest shells are kept.\n");
  printf(" -o <output>         Set the output filename (without extension).\n");
  printf(" -q                  Quiet mode, don't write much to stdout.\n");
  printf(" --remove-handles    Remove all handles of the mesh.\n");
  printf(" -u <steps>          Uniform remeshing of the whole mesh, steps > 0\n");
- printf("   -nv <n>           Constrain number of vertices to n (only with -u)\n");
+ printf("   --vertices <n>    Constrain number of vertices to n (only with -u)\n");
  printf(" --no-clean          Don't clean.\n");
  printf(" --smooth <n>        Apply n laplacian smoothing steps.\n");
  printf(" -s, --stl           Result is saved in STL     format instead of OFF.\n");
@@ -139,6 +139,7 @@ void usage()
  printf("                     Resolve overlaps by moving inner's triangles inwards.\n");
  printf("                     Constrain the min distance between the components > d.\n");
  printf(" --dilate <d>        Dilate the surface by d. d < 0 means shrinking.\n");
+ printf(" --intersect         If the mesh contains intersections, return value = 1.\n");
  printf("Accepted input formats are OFF, PLY and STL.\nOther formats are supported only partially.\n");
  printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
@@ -146,12 +147,12 @@ void usage()
  exit(0);
 }
 
-char *createFilename(const char *iname, const char *subext, const char *newextension)
+char *createFilename(const char *iname, const char *subext, const char *newextension, bool stripExt)
 {
  static char tname[2048];
  char *oname = (char *)malloc(strlen(iname)+strlen(subext)+strlen(newextension)+1);
  strcpy(tname, iname);
- for (int n=strlen(tname)-1; n>0; n--) if (tname[n]=='.') {tname[n] = '\0'; break;}
+ if(stripExt) for (int n=strlen(tname)-1; n>0; n--) if (tname[n]=='.') {tname[n] = '\0'; break;}
  sprintf(oname,"%s%s%s",tname,subext,newextension);
  return oname;
 }
@@ -191,6 +192,7 @@ int main(int argc, char *argv[])
  bool save_vrml = false;
  bool save_stl = false;
  bool haveOutputFile = false;
+ bool haveIntersectText = false;
  const char *outputFile;
  if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) usage();
  for (int i=2; i<argc; i++)
@@ -209,7 +211,7 @@ int main(int argc, char *argv[])
    }
   }
   else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) usage();
-  else if (!strcmp(argv[i], "-ns")) {
+  else if (!strcmp(argv[i], "--shells")) {
       if (i<argc-1) {
           numberComponentsToKeep = atoi(argv[i+1]);
           if (numberComponentsToKeep < 1)
@@ -226,7 +228,7 @@ int main(int argc, char *argv[])
           JMesh::error("# uniform remesh steps must be >= 1.\n");
       i++;
   }
-  else if (!strcmp(argv[i], "-nv")) {
+  else if (!strcmp(argv[i], "--vertices")) {
       if (i>=argc-1 || (numberOfVertices = atoi(argv[i+1]))<1)
           JMesh::error("# of vertices must be >= 0.\n");
       i++;
@@ -288,6 +290,7 @@ int main(int argc, char *argv[])
       }
   }
   else if (!strcmp(argv[i], "--remove-handles")) removeHandles = true;
+  else if (!strcmp(argv[i], "--intersect")) haveIntersectText = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
   else if (!strcmp(argv[i], "-jc")) haveJoinClosestComponents = true;
   else if (!strcmp(argv[i], "-o")) {
@@ -301,11 +304,12 @@ int main(int argc, char *argv[])
   else if (argv[i][0] == '-') JMesh::warning("%s - Unknown operation.\n",argv[i]);
  }
 
+ printf("meshfix %s\n", argv[1]);
  // The loader performs the conversion to a set of oriented manifolds
- if (tin.load(argv[1]) != 0) JMesh::error("Can't open file.\n");
+ if (tin.load(argv[1]) != 0) JMesh::error("Can't open file '%s'.\n", argv[1]);
  // Join the second input argument if existing
  if (tin.append(argv[2]) == 0)
-     JMesh::info("Joining the two meshfiles %s %s.\n", argv[1], argv[2]);
+     JMesh::info("%s was joined.\n", argv[2]);
  input_filename = argv[1];
 
  // Keep only the biggest components
@@ -319,7 +323,7 @@ int main(int argc, char *argv[])
      if(!tin.joinOverlappingComponentPair2()) {
          if(!joinClosestComponents(&tin, false, true, false))
              JMesh::warning("Joining didn't succeed.\n");
-     }
+     } else numberComponentsToKeep = 1; // for subsequent cleaning
  }
  if (haveJoinClosestComponents)
  {
@@ -353,17 +357,23 @@ int main(int argc, char *argv[])
      else tin.cutFirstFromSecondComponent(cutMinDist);
  }
  if (decoupleOuterOutMinDist >= 0) {
+     if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
      printf("Decoupling first (outer) component from second one (move outwards). Min. distance: %g.\n", decoupleOuterOutMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
      else tin.decoupleFirstFromSecondComponent(decoupleOuterOutMinDist, 100, true, true);
+     numberComponentsToKeep = 1; // for subsequent cleaning
  } else if(decoupleOuterInMinDist >= 0) {
+     if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
      printf("Decoupling first (outer) component from second one (move inwards). Min. distance: %g.\n", decoupleInnerInMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
      else tin.decoupleFirstFromSecondComponent(decoupleOuterInMinDist, 100, true, false);
+     numberComponentsToKeep = 1; // for subsequent cleaning
  } else if(decoupleInnerInMinDist >= 0) {
+     if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
      printf("Decoupling first (inner) component from second one (move inwards). Min. distance: %g.\n", decoupleInnerInMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
      else tin.decoupleFirstFromSecondComponent(decoupleInnerInMinDist, 100, false, false);
+     numberComponentsToKeep = 1; // for subsequent cleaning
  }
 
  if(smoothingSteps) {
@@ -381,7 +391,15 @@ int main(int argc, char *argv[])
       fclose(fp);
      }
  }
- char *fname = createFilename( haveOutputFile ? outputFile : argv[1], haveOutputFile ? "": "_fixed", (save_vrml? ".wrl" : (save_stl? ".stl":".off")));
+
+ if (haveIntersectText) {
+     printf("Testing for intersections ...\n");
+     tin.deselectTriangles();
+     if(tin.selectIntersectingTriangles()) return 0;
+     return 1;
+ }
+
+ char *fname = createFilename( haveOutputFile ? outputFile : argv[1], haveOutputFile ? "": "_fixed", (save_vrml? ".wrl" : (save_stl? ".stl":".off")), !haveOutputFile);
  printf("Saving output mesh to '%s'\n",fname);
  if (save_vrml)
      tin.saveVRML1(fname);

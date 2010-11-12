@@ -55,13 +55,14 @@ class ExtTriMesh : public Triangulation
  int  joinOverlappingComponentPair();
  int  joinOverlappingComponentPair2();
  // returns the number of joined boundaries
- int joinComponentsCloseBoundaries(List *nl, List *ml, double maxDistanceToJoin);
+ int joinComponentsBiggestBoundaryPair(List *nl, List *ml, double maxDistanceToJoin);
  bool loopsHaveAllVerticesCloserThanDistance(List *loop, List *loop2, const double &distance);
  //! Determines the closest pair of vertices of the lists l1,l2. Good for boundary loops.
  double closestPair(List *l1, List *l2, Vertex **closest1, Vertex **closest2);
  //! Determines the closest partner of a vertex in a list of vertices
  double getClosestPartner(Vertex *v, List *l, Vertex **closestParnter);
  double mostDistantPartner(Vertex *v, List *l, Vertex **distantPartner);
+ bool joinBoundaryPair(List *bl1, List *bl2);
  int moveVerticesInwards(Point &componentCenter, std::map<Vertex*,Point> &origin, double stepsize = 1.0, double distance = 1.0);
  //! Iteratively moves overlapping parts of the first component out or inwards (in terms of normal orientation), to resolve
  //! overlaps. There are 3 possibilities to resolve overlaps of 2 components (outer and inner):
