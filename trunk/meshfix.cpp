@@ -152,6 +152,12 @@ char *createFilename(const char *iname, const char *subext, const char *newexten
  static char tname[2048];
  char *oname = (char *)malloc(strlen(iname)+strlen(subext)+strlen(newextension)+1);
  strcpy(tname, iname);
+ if(!stripExt)
+ {
+  int tl = strlen(tname), nl = strlen(newextension);
+  stripExt = true;
+  for (int n=0; n < nl; n++) stripExt &= tname[tl-nl+n] == newextension[n]; // strip if identical extension found
+ }
  if(stripExt) for (int n=strlen(tname)-1; n>0; n--) if (tname[n]=='.') {tname[n] = '\0'; break;}
  sprintf(oname,"%s%s%s",tname,subext,newextension);
  return oname;

@@ -308,7 +308,7 @@ bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, uns
         // compute shift as mean normal of surrounding triangles
         for(std::map<Vertex*, Point>::iterator it = shift.begin(); it != shift.end(); ++it) {
             v = it->first;
-            if(double num = (double)numNormals[v]) *v += it->second/num;
+            if(double num = (double)numNormals[v]) *v += it->second*(0.5/num); // stepsize = 0.5
         }
         this->unmarkEverything();
         JMesh::report_progress("Cleaning ...");
