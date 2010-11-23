@@ -347,12 +347,6 @@ int main(int argc, char *argv[])
      if(!tin.removeHandles()) JMesh::warning("Remove handles didn't succeed.\n");
  }
 
-
- if (uniformRemeshSteps) {
-     printf("Uniform remeshing ...\n");
-     tin.uniformRemesh(uniformRemeshSteps, numberOfVertices, tin.E.numels());
- } else if(numberOfVertices) { JMesh::warning("-nv works only together with -u."); }
-
  if (dilateDist != 0.0) {
      printf("Dilating by %g.\n", dilateDist);
      tin.dilate(dilateDist);
@@ -381,6 +375,11 @@ int main(int argc, char *argv[])
      else tin.decoupleFirstFromSecondComponent(decoupleInnerInMinDist, 100, false, false);
      numberComponentsToKeep = 1; // for subsequent cleaning
  }
+
+ if (uniformRemeshSteps) {
+     printf("Uniform remeshing ...\n");
+     tin.uniformRemesh(uniformRemeshSteps, numberOfVertices, tin.E.numels());
+ } else if(numberOfVertices) { JMesh::warning("--vertices works only together with -u."); }
 
  if(smoothingSteps) {
      printf("Smoothing %d steps.\n", smoothingSteps);
