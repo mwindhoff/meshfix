@@ -260,10 +260,8 @@ bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, uns
     short constantBit = 4, decoupleBit = 5;
     Triangle *t;
     Node *n;
-    Vertex *v, *v1, *v2, *v3;
+    Vertex *v;
     ExtTriMesh *shellToDecouple, *constantShell; // temporary triangulation for intermediate cleaning etc.
-    std::map<Vertex*, Point> shift;
-    std::map<Vertex*, int> numNormals;
     if(this->shells() != 2) JMesh::error("Must have exactly 2 components.\n");
     shellToDecouple = (ExtTriMesh*) this->extractFirstShell();
     constantShell = (ExtTriMesh*) this->extractFirstShell();
@@ -286,29 +284,19 @@ bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, uns
            (!treatFirstAsOuter && nt == toDecoupleTriangleNumber && !outwards) // inner inwards
            ) break; // finished
         // we have overlapping triangles
-        shift.clear();
-        numNormals.clear();
-        FOREACHVERTEX(v, n) { // initialize shift with (0,0,0)
-            shift.insert(std::pair<Vertex*, Point>(v,Point()));
-            numNormals.insert(std::pair<Vertex*, int>(v,0));
-        }
         FOREACHTRIANGLE(t, n) { // IS_BIT(t,0) == triangle is inside the constant component
             if(( IS_BIT(t,0) &&  treatFirstAsOuter &&  outwards) || // outer outwards (move inside triangles out)
                ( IS_BIT(t,0) &&  treatFirstAsOuter && !outwards) || // outer inwards  (move inside triangles in)
                (!IS_BIT(t,0) && !treatFirstAsOuter && !outwards)    // inner inwards  (move outside triangle in)
                ) { // compute shift for affected vertices
-                Point normal = t->getNormal();
-                if(!outwards) normal *= -1; // move the boundary inwards
-                v1 = t->v1(); v2 = t->v2(); v3 = t->v3();
-                shift[v1] += normal; shift[v2] += normal; shift[v3] += normal;
-                numNormals[v1]++; numNormals[v2]++; numNormals[v3]++;
+                MARK_VISIT(t->v1()); MARK_VISIT(t->v2()); MARK_VISIT(t->v3());
             }
             UNMARK_BIT(t,0);
         }
-        // compute shift as mean normal of surrounding triangles
-        for(std::map<Vertex*, Point>::iterator it = shift.begin(); it != shift.end(); ++it) {
-            v = it->first;
-            if(double num = (double)numNormals[v]) *v += it->second*(0.5/num); // stepsize = 0.5
+        // compute shift as mean weighted normal of surrounding triangles
+        FOREACHVERTEX(v, n) if(IS_VISITED(v)) {
+            *v += v->getNormal()*0.5*(outwards? 1 : -1);
+            UNMARK_VISIT(v);
         }
         this->unmarkEverything();
         JMesh::report_progress("Cleaning ...");
