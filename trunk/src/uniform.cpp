@@ -47,8 +47,8 @@ Point unrm_tangentRepel(Vertex *v, double len)
   w = e->oppositeVertex(v);
   np = ((*v)-(*w));
   l = np.length();
+  if(l != 0.0) np.normalize();
   l = len-l;
-  np.normalize();
   np = np*l;
   if (IS_SHARPEDGE(e) || e->isOnBoundary()) {nse++; se2=se1; se1=e; if (nse>2) break;}
   np.project(&nor);
