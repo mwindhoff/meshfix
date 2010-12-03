@@ -309,7 +309,7 @@ bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, uns
     if(iteration_counter < max_iterations) return true;
     return false;
 }
-void ExtTriMesh::cutFirstFromSecondComponent(double minAllowedDistance) {
+void ExtTriMesh::cutFirstFromSecondComponent(double minAllowedDistance, bool cutOuter) {
     bool quiet = JMesh::quiet;
     short constantBit = 4, cutBit = 5;
     if(this->shells() != 2) JMesh::error("Must have exactly 2 components.\n");
@@ -327,7 +327,7 @@ void ExtTriMesh::cutFirstFromSecondComponent(double minAllowedDistance) {
     // mark0 triangles of the outer component which are inside of the inner component
     unsigned nt = this->markTrianglesInsideComponent(0, constantBit, cutBit);
     constantShell = (ExtTriMesh*) this->extractFirstShell(); // extract inner component
-    this->invertSelection();
+    if(cutOuter) this->invertSelection();
     this->removeSelectedTriangles();
     this->unmarkEverything();
     this->checkAndRepair();

@@ -71,9 +71,9 @@ class ExtTriMesh : public Triangulation
  //! 3) Move the vertices of the inner component inwards, such that it the outer component contains the inner component.
  //! Mesh is cleaned in each iteration. At the end the second component is removed.
  bool decoupleFirstFromSecondComponent(double minAllowedDistance = 1.0, unsigned max_iterations = 10, bool treatFirstAsOuter = true, bool outwards = true);
- //! Removes all parts of the first component, that are outside the second component and fills the holes again.
+ //! Removes all parts of the first component, that are outside/inside the second component and fills the holes again.
  //! Use decoupleFirstFromSecondComponent() afterwards, to remove overlaps produces by the hole filling.
- void cutFirstFromSecondComponent(double minAllowedDistance = 1.0);
+ void cutFirstFromSecondComponent(double minAllowedDistance = 1.0, bool cutOuter = true);
  //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
  int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
  //! Moves vertices of component1 that are closer than d to any triangle of component2.
