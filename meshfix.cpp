@@ -129,9 +129,9 @@ void usage()
  printf(" -s, --stl           Result is saved in STL     format instead of OFF.\n");
  printf(" -w, --wrl           Result is saved in VRML1.0 format instead of OFF.\n");
  printf(" == Cutting, decoupling, dilation ==\n");
- printf(" --cut-outer <d>     Remove triangles of 2nd that are outside of the 1st shell.\n");
- printf(" --cut-inner <d>     Remove triangles of 2nd that are inside  of the 1st shell.\n");
- printf("                     Dilate 1st by d; Fill holes and keep only 2nd afterwards.\n");
+ printf(" --cut-outer <d>     Remove triangles of 1st that are outside of the 2nd shell.\n");
+ printf(" --cut-inner <d>     Remove triangles of 1st that are inside  of the 2nd shell.\n");
+ printf("                     Dilate 2nd by d; Fill holes and keep only 1st afterwards.\n");
  printf(" --decouple-inin <d> Treat 1st file as inner, 2nd file as outer component.\n");
  printf("                     Resolve overlaps by moving inners triangles inwards.\n");
  printf(" --decouple-outin <d> Treat 1st file as outer, 2nd file as inner component.\n");
@@ -364,12 +364,12 @@ int main(int argc, char *argv[])
  if (cutOuterMinDist >= 0) {
      printf("Cutting triangles of the first component away, that are outside of the second one; Fill holes.\n");
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't cut. Having %d and should have 2.\n", tin.shells());
-     else tin.cutFirstFromSecondComponent(cutOuterMinDist);
+     else tin.cutFirstWithSecondComponent(cutOuterMinDist);
  }
  if (cutInnerMinDist >= 0) {
      printf("Cutting triangles of the first component away, that are inside of the second one; Fill holes.\n");
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't cut. Having %d and should have 2.\n", tin.shells());
-     else tin.cutFirstFromSecondComponent(cutOuterMinDist, false);
+     else tin.cutFirstWithSecondComponent(cutInnerMinDist, false);
  }
  if (decoupleOuterOutMinDist >= 0) {
      if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
