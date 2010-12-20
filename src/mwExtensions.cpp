@@ -284,11 +284,12 @@ bool ExtTriMesh::decoupleFirstFromSecondComponent(double minAllowedDistance, uns
            (!treatFirstAsOuter && nt == toDecoupleTriangleNumber && !outwards) // inner inwards
            ) break; // finished
         std::map<Vertex*, Point> shift;
+        FOREACHVERTEX(v, n) UNMARK_VISIT(v);
         // we have overlapping triangles
         FOREACHTRIANGLE(t, n) { // IS_BIT(t,0) == triangle is inside the constant component
-            if(( IS_BIT(t,0) &&  treatFirstAsOuter &&  outwards) || // outer outwards (move inside triangles out)
-               ( IS_BIT(t,0) &&  treatFirstAsOuter && !outwards) || // outer inwards  (move inside triangles in)
-               (!IS_BIT(t,0) && !treatFirstAsOuter && !outwards)    // inner inwards  (move outside triangle in)
+            if(( IS_BIT(t,0) &&  treatFirstAsOuter &&  outwards) || // outer outwards (move inside  triangles out)
+               ( IS_BIT(t,0) &&  treatFirstAsOuter && !outwards) || // outer inwards  (move inside  triangles in)
+               (!IS_BIT(t,0) && !treatFirstAsOuter && !outwards)    // inner inwards  (move outside triangles in)
                ) { // compute shift for affected vertices
                 MARK_VISIT(t->v1()); MARK_VISIT(t->v2()); MARK_VISIT(t->v3());
             }
@@ -340,6 +341,7 @@ void ExtTriMesh::cutFirstWithSecondComponent(double minAllowedDistance, bool cut
 }
 
 int ExtTriMesh::markTrianglesInsideComponent(short insideMarkBit, short componentMarkBit1, short componentMarkBit2) {
+    this->forceNormalConsistence();
     di_cell *c = new di_cell(this), *c2, *tmp;
     Triangle *t;
     Node *n;
@@ -409,8 +411,7 @@ int ExtTriMesh::markTrianglesInsideComponent(short insideMarkBit, short componen
                     UNMARK_VISIT(*j);
                 if(dmin == DBL_MAX) { /*v->printPoint(); */continue; }
                 // get the mean normal at the closest vertex
-                Point meanNormal;
-                FOREACHVTTRIANGLE(closest->VT(), t, n) meanNormal += t->getNormal();
+                Point meanNormal = closest->getNormal();
                 // decide whether it is inside or outside (using the mean normal plane)
                 bool isInside = meanNormal.squaredLength() ? meanNormal*(*v - *closest) < 0 : false;
                 // find an unselected triangle of having vertex v
