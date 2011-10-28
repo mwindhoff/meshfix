@@ -167,6 +167,8 @@ class Triangulation
  int saveOFF(const char *);		//!< Saves OFF 1.0
  int saveOBJ(const char *);		//!< Saves OBJ
  int saveSTL(const char *);		//!< Saves STL
+ int saveMSH(const char *, char maskByte = 0, bool save_normals = 0);             //!< Saves gmsh MSH format
+ int saveFSMESH(const char *, float xshift = 0.0 );          //!< Saves FreeSurfer format
  int savePLY(const char *, bool ascii = 1); //!< Saves PLY 1.0 (ascii or binary)
  int saveVerTri(const char *);		//!< Saves Ver-Tri
 
@@ -403,9 +405,9 @@ class Triangulation
  void joinHeadTriangulation(Triangulation *src);
 
  //! Convenience function to extract the shell connected to the triangle t (while removing it from the current mesh).
- Triangulation *extractShell(Triangle *t);
+ Triangulation *extractShell(Triangle *t, const bool copy_mask=false);
  //! Convenience function to extract the first shell (shell connected to the first triangle in T).
- Triangulation *extractFirstShell();
+ Triangulation *extractFirstShell(const bool copy_mask=false);
 
  /////////////////////////////////////////////////////////////////////////////
  //

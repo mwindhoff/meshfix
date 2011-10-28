@@ -128,6 +128,10 @@ void usage()
  printf(" --smooth <n>        Apply n laplacian smoothing steps.\n");
  printf(" -s, --stl           Result is saved in STL     format instead of OFF.\n");
  printf(" -w, --wrl           Result is saved in VRML1.0 format instead of OFF.\n");
+ printf(" --fsmesh            Result is saved in FreeSurfer format instead of OFF.\n");
+ printf(" --xshift <d>        Shift x-coordinates of vertices by d when saving output.\n");
+ printf("                     Only works with --fsmesh; used to deal with small FreeSurfer glitch\n");
+ printf(" --msh               Result is saved in gmsh format for debugging (including vertex and triangle masks)\n");
  printf(" == Cutting, decoupling, dilation ==\n");
  printf(" --cut-outer <d>     Remove triangles of 1st that are outside of the 2nd shell.\n");
  printf(" --cut-inner <d>     Remove triangles of 1st that are inside  of the 2nd shell.\n");
@@ -139,8 +143,15 @@ void usage()
  printf(" --decouple-outout <d> Treat 1st file as outer, 2nd file as inner component.\n");
  printf("                     Resolve overlaps by moving outers triangles outwards.\n");
  printf("                     Constrain the min distance between the components > d.\n");
+ printf(" --fineTuneIn <d> <n> Used to fine-tune the minimal distance between surfaces \n");
+ printf("                     A minimal distance d is ensured, and reached in n substeps \n");
+ printf("                     When using the surfaces for subsequent volume meshing by gmsh\n");
+ printf("                     this step prevent too flat tetrahedra\n");
+ printf(" --fineTuneOut <d> <n> Similar to --fineTuneIn, but ensures minimal distance in the other direction\n");
  printf(" --dilate <d>        Dilate the surface by d. d < 0 means shrinking.\n");
  printf(" --intersect         If the mesh contains intersections, return value = 1.\n");
+ printf(" --intersect -o fname.msh  If the mesh contains intersections, return value = 1.\n");
+ printf("                     In addtion, save mesh with highlighted intersections in Gmsh format\n");
  printf("Accepted input formats are OFF, PLY and STL.\nOther formats are supported only partially.\n");
  printf("See http://jmeshlib.sourceforge.net for details on supported formats.\n");
  printf("\nIf MeshFix is used for research purposes, please cite the following paper:\n");
@@ -168,10 +179,10 @@ int main(int argc, char *argv[])
 {
  JMesh::init();
  JMesh::app_name = "MeshFix";
- JMesh::app_version = "1.1-alpha";
- JMesh::app_year = "2010";
- JMesh::app_authors = "Marco Attene, Mirko Windhoff";
- JMesh::app_maillist = "attene@ge.imati.cnr.it, mirko.windhoff@tuebingen.mpg.de";
+ JMesh::app_version = "1.2-alpha";
+ JMesh::app_year = "2011";
+ JMesh::app_authors = "Marco Attene, Mirko Windhoff, Axel Thielscher";
+ JMesh::app_maillist = "attene@ge.imati.cnr.it, mirko.windhoff@tuebingen.mpg.de, axel.thielscher@tuebingen.mpg.de";
  ExtTriMesh tin;
 
 #ifdef DISCLAIMER
@@ -190,14 +201,18 @@ int main(int argc, char *argv[])
 // float minAllowedDistance = 0;
  bool haveJoinClosestComponents = false;
  int uniformRemeshSteps = 0, numberOfVertices = 0;
- int smoothingSteps = 0;
+ int smoothingSteps = 0, nsteps = -1;
  double cutOuterMinDist = -1, cutInnerMinDist = -1;
  double decoupleOuterOutMinDist = -1, decoupleOuterInMinDist = -1, decoupleInnerInMinDist = -1;
  double dilateDist = 0;
+ double fineTuneIn = -1, fineTuneOut = -1;
  bool clean = true;
  bool removeHandles = false;
  bool save_vrml = false;
  bool save_stl = false;
+ bool save_msh = false;
+ bool save_fsmesh = false;
+ float xshift = 0.0; // used by saveFSMESH
  bool haveOutputFile = false;
  bool haveIntersectText = false;
  const char *outputFile;
@@ -229,10 +244,18 @@ int main(int argc, char *argv[])
   }
   else if (!strcmp(argv[i], "-w") || !strcmp(argv[i], "--wrl")) save_vrml = true;
   else if (!strcmp(argv[i], "-s") || !strcmp(argv[i], "--stl")) save_stl = true;
+  else if (!strcmp(argv[i], "--msh")) save_msh = true;
+  else if (!strcmp(argv[i], "--fsmesh")) save_fsmesh = true;
   else if (!strcmp(argv[i], "-j")) joinOverlappingComponents = true;
   else if (!strcmp(argv[i], "-u")) {
       if (i>=argc-1 || (uniformRemeshSteps = atoi(argv[i+1]))<1)
           JMesh::error("# uniform remesh steps must be >= 1.\n");
+      i++;
+  }
+  else if (!strcmp(argv[i], "--xshift")) {
+      if (i>=argc-1) JMesh::error("error reading xshift\n");
+      xshift = (float) atof(argv[i+1]);
+      JMesh::info("xshift set to %f\n",xshift);
       i++;
   }
   else if (!strcmp(argv[i], "--vertices")) {
@@ -305,6 +328,20 @@ int main(int argc, char *argv[])
           i++;
       }
   }
+  else if (!strcmp(argv[i], "--fineTuneIn")) {
+      if (i<argc-1) { fineTuneIn = atof(argv[i+1]);  i++; }
+      if (fineTuneIn <= 0) JMesh::error("fineTuneIn MinDist must be > 0.\n");
+
+      if (i<argc-1) { nsteps = atoi(argv[i+1]);  i++; }
+      if (nsteps <= 0) JMesh::error("number of substeps must be > 0.\n");
+  }
+  else if (!strcmp(argv[i], "--fineTuneOut")) {
+      if (i<argc-1) { fineTuneOut = atof(argv[i+1]);  i++; }
+      if (fineTuneOut <= 0) JMesh::error("fineTuneOut MinDist must be > 0.\n");
+
+      if (i<argc-1) { nsteps = atoi(argv[i+1]);  i++; }
+      if (nsteps <= 0) JMesh::error("number of substeps must be > 0.\n");
+  }
   else if (!strcmp(argv[i], "--remove-handles")) removeHandles = true;
   else if (!strcmp(argv[i], "--intersect")) haveIntersectText = true;
   else if (!strcmp(argv[i], "--no-clean")) clean = false;
@@ -323,6 +360,7 @@ int main(int argc, char *argv[])
  printf("meshfix %s\n", argv[1]);
  // The loader performs the conversion to a set of oriented manifolds
  if (tin.load(argv[1]) != 0) JMesh::error("Can't open file '%s'.\n", argv[1]);
+
  // Join the second input argument if existing
  if (tin.append(argv[2]) == 0)
      JMesh::info("%s was joined.\n", argv[2]);
@@ -364,7 +402,7 @@ int main(int argc, char *argv[])
  if (cutOuterMinDist >= 0) {
      printf("Cutting triangles of the first component away, that are outside of the second one; Fill holes.\n");
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't cut. Having %d and should have 2.\n", tin.shells());
-     else tin.cutFirstWithSecondComponent(cutOuterMinDist);
+     else tin.cutFirstWithSecondComponent(cutOuterMinDist, true);
  }
  if (cutInnerMinDist >= 0) {
      printf("Cutting triangles of the first component away, that are inside of the second one; Fill holes.\n");
@@ -375,21 +413,32 @@ int main(int argc, char *argv[])
      if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
      printf("Decoupling first (outer) component from second one (move outwards). Min. distance: %g.\n", decoupleOuterOutMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleFirstFromSecondComponent(decoupleOuterOutMinDist, 100, true, true);
+     else tin.decoupleFirstFromSecondComponent(decoupleOuterOutMinDist, 15, true, true);
      numberComponentsToKeep = 1; // for subsequent cleaning
  } else if(decoupleOuterInMinDist >= 0) {
      if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
      printf("Decoupling first (outer) component from second one (move inwards). Min. distance: %g.\n", decoupleInnerInMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleFirstFromSecondComponent(decoupleOuterInMinDist, 100, true, false);
+     else tin.decoupleFirstFromSecondComponent(decoupleOuterInMinDist, 15, true, false);
      numberComponentsToKeep = 1; // for subsequent cleaning
  } else if(decoupleInnerInMinDist >= 0) {
      if(numberComponentsToKeep == 1) JMesh::warning("Use --shells 2 for decoupling.\n");
      printf("Decoupling first (inner) component from second one (move inwards). Min. distance: %g.\n", decoupleInnerInMinDist);
      if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
-     else tin.decoupleFirstFromSecondComponent(decoupleInnerInMinDist, 100, false, false);
+     else tin.decoupleFirstFromSecondComponent(decoupleInnerInMinDist, 15, false, false);
      numberComponentsToKeep = 1; // for subsequent cleaning
  }
+
+ if (fineTuneIn >=0) {
+     printf("Fine-tuning for later volume meshing ...\n");
+     if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
+     else tin.fineTune(fineTuneIn, nsteps, true);
+ } else if (fineTuneOut >=0) {
+     printf("Fine-tuning for later volume meshing ...\n");
+     if(tin.shells() != 2) JMesh::warning("Incorrect number of components, won't decouple. Having %d and should have 2.\n", tin.shells());
+     else tin.fineTune(fineTuneOut, nsteps, false);
+ }
+
 
  if (uniformRemeshSteps) {
      printf("Uniform remeshing ...\n");
@@ -415,16 +464,25 @@ int main(int argc, char *argv[])
  if (haveIntersectText) {
      printf("Testing for intersections ...\n");
      tin.deselectTriangles();
-     if(tin.selectIntersectingTriangles()) return 0;
+
+     int its = tin.selectIntersectingTriangles();
+
+     if(haveOutputFile) tin.saveMSH(outputFile);
+
+     if(its) return 0;
      return 1;
  }
 
- char *fname = createFilename( haveOutputFile ? outputFile : argv[1], haveOutputFile ? "": "_fixed", (save_vrml? ".wrl" : (save_stl? ".stl":".off")), !haveOutputFile);
+ char *fname = createFilename( haveOutputFile ? outputFile : argv[1], haveOutputFile ? "": "_fixed", (save_vrml? ".wrl" : (save_stl? ".stl": (save_msh? ".msh" : (save_fsmesh? ".fsmesh" : ".off")))), !haveOutputFile);
  printf("Saving output mesh to '%s'\n",fname);
  if (save_vrml)
      tin.saveVRML1(fname);
  else if (save_stl)
      tin.saveSTL(fname);
+ else if (save_msh)
+     tin.saveMSH(fname);
+ else if (save_fsmesh)
+     tin.saveFSMESH(fname,xshift);
  else
      tin.saveOFF(fname);
  return 0;

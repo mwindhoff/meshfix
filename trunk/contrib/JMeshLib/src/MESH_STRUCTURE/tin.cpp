@@ -136,7 +136,6 @@ Triangulation::Triangulation(const Triangulation *tin, const bool clone_info)
 //// Creates a new Triangulation out of a connected component of an existing Triangulation.
 //// If 'keep_reference' is set to 'true', each element of the existing mesh keeps a
 //// pointer to the corresponding new element in the 'info' field.
-
 Triangulation::Triangulation(const Triangle *t0, const bool keep_reference)
 {
  List todo(t0), st, sv, se;
@@ -167,7 +166,7 @@ Triangulation::Triangulation(const Triangle *t0, const bool keep_reference)
  }
 
  FOREACHVVVERTEX((&sv), v, n)
-  {UNMARK_VISIT2(v); nv=new Vertex(v); V.appendTail(nv); v->info = nv;}
+ {UNMARK_VISIT2(v); nv=new Vertex(v); V.appendTail(nv); if (v->info != NULL) {nv->info = v->info;}; v->info = nv;} // modification A.T.: copy info pointer to nv
 
  FOREACHVEEDGE((&se), e, n)
   {UNMARK_VISIT2(e); ne=new Edge((Vertex *)e->v1->info, (Vertex *)e->v2->info); E.appendTail(ne); e->info = ne;}
@@ -977,14 +976,64 @@ void Triangulation::joinHeadTriangulation(Triangulation *src) {
     this->joinTailTriangulation(src);
 }
 
-Triangulation *Triangulation::extractShell(Triangle *t) {
-    Triangulation *tin = new Triangulation((Triangle*) t);
+Triangulation *Triangulation::extractShell(Triangle *t, const bool copy_mask) {
+
+    Node *n, *nin;
+    Vertex *v,*vin;
+    Edge *e, *ein;
+    Triangle *thlp,*thlpin;
+    Triangulation *tin;
+    int i;
+
+    // modification A.T.: mask byte is copied if desired
+    if(copy_mask) {
+
+        // copy mask bits (V,E,T) into arrays
+        char *v_mask = new char [V.numels()];
+        i=0; FOREACHVERTEX(v, n) { v_mask[i++] = v->mask; v->mask = 0; };
+        char *e_mask = new char [E.numels()];
+        i=0; FOREACHEDGE(e, n) { e_mask[i++] = e->mask; e->mask = 0; };
+        char *t_mask = new char [T.numels()];
+        i=0; FOREACHTRIANGLE(thlp, n) { t_mask[i++] = thlp->mask; thlp->mask = 0; };
+
+        // copy v->info pointers into array and set all v->info pointers to NULL
+        void **v_info = new void *[V.numels()];
+        i=0; FOREACHVERTEX(v, n){ v_info[i++]=v->info; v->info = NULL;};
+
+        tin = new Triangulation((Triangle*) t,1);
+
+        // the info->pointers in the original triangulation are now NULL or point
+        // to corresponding new vertics, triangles and edges in tin:
+        // so loop over original V,E,T, and whenever info is not NULL, copy mask bit
+        // from array to tin (for V, also copy info pointers to keep numbering)
+        i=0; FOREACHTRIANGLE(thlp, n) { if(thlp->info) { thlpin = (Triangle *)thlp->info; thlpin->mask = t_mask[i]; }; i++; }
+        i=0; FOREACHVERTEX(v, n) { if(v->info) { vin = (Vertex *)v->info; vin->mask = v_mask[i]; vin->info = v_info[i]; }; i++; }
+        i=0; FOREACHEDGE(e, n) { if(e->info) { ein = (Edge *)e->info; ein->mask = e_mask[i]; }; i++; }
+
+        // copy v->info pointers back from array to original triangulation
+        i=0; FOREACHVERTEX(v, n) v->info = v_info[i++];
+
+        // copy back mask bits from arrays to original triangulation
+       i=0; FOREACHVERTEX(v, n) v->mask = v_mask[i++];
+       i=0; FOREACHEDGE(e, n) e->mask = e_mask[i++];
+
+       // copy back masks only for triangles that will not be removed below; otherwise this->removeShell(t) is "confused"
+       i=0; FOREACHTRIANGLE(thlp, n) { if(!thlp->info) { thlp->mask = t_mask[i]; }; i++; };
+
+        // clean up memory
+        delete [] v_mask; delete [] e_mask; delete [] t_mask; delete [] v_info;
+    }
+    else tin = new Triangulation((Triangle*) t);
+
     this->removeShell(t);
+    // removeShell apparently does not change the mask bits of the triangles that are not removed !?
+    // so this should be OK; but mask bit 2 of triangles that are removed have to be set to 0 before!
+
     return tin;
 }
 
-Triangulation *Triangulation::extractFirstShell() {
-    return this->extractShell((Triangle*)T.head()->data);
+Triangulation *Triangulation::extractFirstShell(const bool copy_mask) {
+    return this->extractShell((Triangle*)T.head()->data,copy_mask);
 }
 
 //////////////////////////////////////////////////////////////////

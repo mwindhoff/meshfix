@@ -75,11 +75,13 @@ class ExtTriMesh : public Triangulation
  //! Use decoupleFirstFromSecondComponent() afterwards, to remove overlaps produces by the hole filling.
  void cutFirstWithSecondComponent(double minAllowedDistance = 1.0, bool cutOuter = true);
  //! Marks triangles of component1 that are inside of component2. Components triangles must be marked accordingly.
- int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
+ int markTrianglesInsideComponent(short targetMarkBit = 0, short componentMarkBit1 = 5, short componentMarkBit2 = 4, bool treatIntersectionsAsOutside = false);
  //! Moves vertices of component1 that are closer than d to any triangle of component2.
  int moveTooCloseVerticesOutwards(double minAllowedDistance = 1.0, short componentMarkBit1 = 5, short componentMarkBit2 = 4);
  //! Dilates the surface by d into the direction of the mean normal at each vertex
  void dilate(double d = 1.0);
+ //! fine-tunes the triangle distances
+ int fineTune(double dist = 0.2, int nsteps = 4, bool secondIn = false);
 
  // Cleaning functions (src/cleaning.cpp)
  void asciiAlign();
